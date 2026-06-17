@@ -10,6 +10,9 @@ public interface UserPort {
     /** 手机号查用户（注册去重） */
     UserEntity findByPhone(String phone);
 
+    /** 按昵称查用户（用户名登录） */
+    UserEntity findByNickname(String nickname);
+
     /** 按 ID 查（拦截器注入） */
     UserEntity findById(Long id);
 

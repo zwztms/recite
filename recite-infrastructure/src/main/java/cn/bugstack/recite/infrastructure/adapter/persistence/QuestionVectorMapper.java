@@ -1,6 +1,5 @@
 package cn.bugstack.recite.infrastructure.adapter.persistence;
 
-import cn.bugstack.recite.domain.knowledge.model.valueobj.EmbeddedQuestionVO;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -34,6 +33,19 @@ public interface QuestionVectorMapper extends BaseMapper<QuestionVectorDO> {
     @Select("SELECT * FROM question_vectors WHERE module_key = #{moduleKey} LIMIT #{limit}")
     List<QuestionVectorDO> findByModule(@Param("moduleKey") String moduleKey,
                                         @Param("limit") int limit);
+
+    /**
+     * pgvector 余弦相似度搜索（不限模块）.
+     */
+    @Select("""
+            SELECT qv.*, 1 - (embedding <=> CAST(#{queryVector} AS vector)) AS similarity
+            FROM question_vectors qv
+            WHERE tags NOT LIKE '%status:OFFLINE%'
+            ORDER BY embedding <=> CAST(#{queryVector} AS vector)
+            LIMIT #{limit}
+            """)
+    List<QuestionVectorDO> searchByVectorAll(@Param("queryVector") String queryVector,
+                                             @Param("limit") int limit);
 
     /** 按模块统计题目数 */
     @Select("SELECT COUNT(*) FROM question_vectors WHERE module_key = #{moduleKey}")

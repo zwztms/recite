@@ -21,4 +21,7 @@ public class QuestionVectorDO {
     private Integer difficulty;
     /** pgvector 1024 维向量，MyBatis Plus 通过自定义 type handler 或原生 SQL 处理 */
     private float[] embedding;
+    /** 相似度得分（SQL 计算列，非表字段） */
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private Double similarity;
 }

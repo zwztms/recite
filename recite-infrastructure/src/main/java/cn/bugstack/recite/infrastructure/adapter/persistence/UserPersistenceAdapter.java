@@ -25,6 +25,13 @@ public class UserPersistenceAdapter implements UserPort {
     }
 
     @Override
+    public UserEntity findByNickname(String nickname) {
+        UserDO d = mapper.selectOne(
+                new LambdaQueryWrapper<UserDO>().eq(UserDO::getNickname, nickname));
+        return toEntity(d);
+    }
+
+    @Override
     public UserEntity findById(Long id) {
         UserDO d = mapper.selectById(id);
         return toEntity(d);

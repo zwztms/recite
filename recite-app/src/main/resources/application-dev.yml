@@ -26,7 +26,7 @@ siliconflow:
 
 sa-token:
   token-name: Authorization
-  timeout: 2592000
+  timeout: 604800
   is-concurrent: false
   is-share: false
   token-style: simple-uuid

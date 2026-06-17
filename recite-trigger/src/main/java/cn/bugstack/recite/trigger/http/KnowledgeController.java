@@ -8,6 +8,8 @@ import cn.bugstack.recite.domain.knowledge.model.entity.KnowledgeModuleEntity;
 import cn.bugstack.recite.domain.knowledge.model.entity.QuestionEntity;
 import cn.bugstack.recite.domain.knowledge.port.out.ModulePort;
 import cn.bugstack.recite.domain.knowledge.port.out.QuestionPort;
+import cn.bugstack.recite.domain.knowledge.model.valueobj.ImportResultVO;
+import cn.bugstack.recite.domain.knowledge.port.out.FileImportPort;
 import cn.bugstack.recite.domain.knowledge.service.KnowledgeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,6 +27,7 @@ public class KnowledgeController implements IKnowledgeService {
     private final ModulePort modulePort;
     private final QuestionPort questionPort;
     private final KnowledgeService knowledgeService;
+    private final FileImportPort fileImportPort;
 
     // ==== 模块管理 ====
 
@@ -109,10 +112,11 @@ public class KnowledgeController implements IKnowledgeService {
 
     @Override
     public Response<ImportResultDTO> triggerImport() {
-        // 简化版：导入逻辑由 infra 层的 FileImportAdapter（后续实现）解析文件后调用 KnowledgeService
-        ImportResultDTO result = new ImportResultDTO();
-        result.setImported(0);
-        result.setMessage("导入功能待实现 — 需配置 docs/import/ 目录并实现 FileImportAdapter");
-        return Response.ok(result);
+        ImportResultVO vo = fileImportPort.doImport();
+        ImportResultDTO dto = new ImportResultDTO();
+        dto.setImported(vo.getImported());
+        dto.setMessage(vo.getMessage());
+        dto.setErrors(vo.getErrors());
+        return Response.ok(dto);
     }
 }

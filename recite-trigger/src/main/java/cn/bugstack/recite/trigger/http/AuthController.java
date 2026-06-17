@@ -63,8 +63,7 @@ public class AuthController implements IAuthService {
         if (account.matches("^1\\d{10}$")) {
             user = userPort.findByPhone(account);
         } else {
-            // 按昵称查 — 简化实现，UserPort 暂不支持 findByName，直接查 phone
-            user = userPort.findByPhone(account);
+            user = userPort.findByNickname(account);
         }
 
         if (user == null) {

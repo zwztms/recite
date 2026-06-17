@@ -4,6 +4,7 @@ import cn.bugstack.recite.domain.knowledge.model.entity.QuestionEntity;
 import cn.bugstack.recite.domain.knowledge.port.out.EmbeddingPort;
 import cn.bugstack.recite.domain.knowledge.port.out.ModulePort;
 import cn.bugstack.recite.domain.knowledge.port.out.QuestionPort;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
@@ -12,6 +13,7 @@ import java.util.List;
  *
  * <p>不调外部 API，只通过 Port 接口编排.</p>
  */
+@Service
 public class KnowledgeService {
 
     private final EmbeddingPort embeddingPort;

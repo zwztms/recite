@@ -2,6 +2,7 @@ package cn.bugstack.recite.infrastructure.adapter.rag;
 
 import cn.bugstack.recite.domain.knowledge.model.entity.QuestionEntity;
 import cn.bugstack.recite.domain.knowledge.model.valueobj.EmbeddedQuestionVO;
+import cn.bugstack.recite.domain.knowledge.port.out.EmbeddingPort;
 import cn.bugstack.recite.domain.knowledge.port.out.QuestionPort;
 import cn.bugstack.recite.infrastructure.adapter.persistence.QuestionVectorDO;
 import cn.bugstack.recite.infrastructure.adapter.persistence.QuestionVectorMapper;
@@ -10,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -22,39 +22,50 @@ import java.util.List;
 public class PgVectorAdapter implements QuestionPort {
 
     private final QuestionVectorMapper mapper;
+    private final EmbeddingPort embeddingPort;
 
     @Override
     public List<EmbeddedQuestionVO> search(String query, List<String> moduleKeys, int topK) {
-        // 模块过滤：为空则不过滤（传空数组会被 SQL ANY 全部匹配）
         String[] keys = (moduleKeys == null || moduleKeys.isEmpty())
                 ? null : moduleKeys.toArray(new String[0]);
-        // 向量用空字符串占位 — 实际应由调用方先 embedding 再传进来
-        // 此处简化：如果 query 不为空，调用方应先用 EmbeddingPort 获取向量后传
-        String vecStr = vectorToString(new float[1024]); // placeholder
 
-        List<QuestionVectorDO> list;
-        if (keys == null || keys.length == 0) {
-            list = mapper.selectList(null);
-        } else {
-            list = mapper.findByModule(keys[0], topK);
+        // 文本转向量 → pgvector 余弦搜索
+        float[] queryVector = embeddingPort.embed(query != null ? query : "");
+        if (queryVector == null || queryVector.length == 0) {
+            log.warn("Embedding 返回空向量，降级为按模块查询");
+            return searchByModule(null, topK);
         }
 
+        String vecStr = vectorToPgString(queryVector);
+        List<QuestionVectorDO> list;
+        if (keys == null || keys.length == 0) {
+            list = mapper.searchByVectorAll(vecStr, topK);
+        } else {
+            list = mapper.searchByVector(vecStr, keys, topK);
+        }
+
+        return list.stream()
+                .map(d -> {
+                    QuestionEntity q = toEntity(d);
+                    return new EmbeddedQuestionVO(q, d.getSimilarity());
+                })
+                .toList();
+    }
+
+    @Override
+    public List<EmbeddedQuestionVO> searchByModule(String moduleKey, int topK) {
+        List<QuestionVectorDO> list;
+        if (moduleKey == null) {
+            list = mapper.selectList(null);
+        } else {
+            list = mapper.findByModule(moduleKey, topK);
+        }
         return list.stream()
                 .map(d -> {
                     QuestionEntity q = toEntity(d);
                     return new EmbeddedQuestionVO(q, 1.0);
                 })
                 .limit(topK)
-                .toList();
-    }
-
-    @Override
-    public List<EmbeddedQuestionVO> searchByModule(String moduleKey, int topK) {
-        return mapper.findByModule(moduleKey, topK).stream()
-                .map(d -> {
-                    QuestionEntity q = toEntity(d);
-                    return new EmbeddedQuestionVO(q, 1.0);
-                })
                 .toList();
     }
 
@@ -114,8 +125,14 @@ public class PgVectorAdapter implements QuestionPort {
         return d;
     }
 
-    private String vectorToString(float[] vec) {
-        if (vec == null) return "[]";
-        return Arrays.toString(vec);
+    /** float[] → pgvector 兼容字符串 "[0.1,0.2,...]" */
+    static String vectorToPgString(float[] vec) {
+        if (vec == null || vec.length == 0) return "[]";
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < vec.length; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(vec[i]);
+        }
+        return sb.append("]").toString();
     }
 }
