@@ -1,0 +1,57 @@
+services:
+  # PostgreSQL 16 + pgvector 扩展（端口 5433，避免与 recite 的 PG 5432 冲突）
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: recite-v2-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: recite
+      POSTGRES_USER: recite
+      POSTGRES_PASSWORD: recite123
+    volumes:
+      - v2_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recite"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: recite-v2-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - v2_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.3.0
+    container_name: recite-v2-rmq-namesrv
+    ports:
+      - "9876:9876"
+    command: sh mqnamesrv
+    environment:
+      JAVA_OPT_EXT: "-server -Xms256m -Xmx256m"
+
+  rocketmq-broker:
+    image: apache/rocketmq:5.3.0
+    container_name: recite-v2-rmq-broker
+    depends_on:
+      - rocketmq-namesrv
+    ports:
+      - "10911:10911"
+      - "10912:10912"
+    command: sh mqbroker -n rocketmq-namesrv:9876
+    environment:
+      JAVA_OPT_EXT: "-server -Xms512m -Xmx512m"
+
+volumes:
+  v2_postgres_data:
+  v2_redis_data:

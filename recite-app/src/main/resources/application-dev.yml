@@ -3,10 +3,14 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/recite
+    url: jdbc:postgresql://localhost:5433/recite
     username: recite
     password: recite123
     driver-class-name: org.postgresql.Driver
+  data:
+    redis:
+      host: localhost
+      port: 6379
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
@@ -14,6 +18,16 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+redisson:
+  address: redis://localhost:6379
+  timeout: 3000
+  connection-pool-size: 16
+
+rocketmq:
+  name-server: localhost:9876
+  producer:
+    group: recite-producer
 
 deepseek:
   api-key: ${DEEPSEEK_API_KEY:}
