@@ -34,7 +34,7 @@
         <postgresql.version>42.7.3</postgresql.version>
         <lombok.version>1.18.36</lombok.version>
         <redisson.version>3.41.0</redisson.version>
-        <rocketmq.version>5.2.0</rocketmq.version>
+        <rocketmq.version>2.3.2</rocketmq.version>
         <springdoc.version>2.7.0</springdoc.version>
         <allure.version>2.27.0</allure.version>
     </properties>
@@ -43,7 +43,7 @@
         <repository>
             <id>nexus-aliyun</id>
             <name>nexus-aliyun</name>
-            <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
+            <url>https://maven.aliyun.com/repository/public</url>
             <releases><enabled>true</enabled></releases>
             <snapshots><enabled>false</enabled></snapshots>
         </repository>
