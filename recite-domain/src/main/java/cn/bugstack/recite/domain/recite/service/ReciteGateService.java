@@ -4,10 +4,12 @@ import cn.bugstack.recite.domain.recite.exception.ReciteException;
 import cn.bugstack.recite.domain.recite.model.entity.ReciteSession;
 import cn.bugstack.recite.types.enums.ResponseCode;
 import cn.bugstack.recite.types.common.Constants;
+import org.springframework.stereotype.Service;
 
 /**
  * 背诵门控校验 — 纯规则，无外部依赖.
  */
+@Service
 public class ReciteGateService {
 
     /** 校验会话：存在 + userId 匹配 + 未结束 */
