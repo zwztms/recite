@@ -3,6 +3,10 @@ package cn.bugstack.recite.domain.recite.service;
 import cn.bugstack.recite.domain.knowledge.model.entity.QuestionEntity;
 import cn.bugstack.recite.domain.knowledge.model.valueobj.EmbeddedQuestionVO;
 import cn.bugstack.recite.domain.knowledge.port.out.QuestionPort;
+import cn.bugstack.recite.domain.progress.model.entity.UserProgressEntity;
+import cn.bugstack.recite.domain.progress.port.out.ProgressPort;
+import cn.bugstack.recite.domain.progress.service.SpacedRepetitionService;
+import cn.bugstack.recite.domain.progress.service.StreakService;
 import cn.bugstack.recite.domain.recite.model.entity.ReciteRecordEntity;
 import cn.bugstack.recite.domain.recite.model.entity.ReciteSession;
 import cn.bugstack.recite.domain.recite.model.valueobj.ScoreResultVO;
@@ -17,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -32,19 +37,28 @@ public class ReciteOrchestrationService {
     private final LlmPort llmPort;
     private final ReciteRecordPort recordPort;
     private final ReciteGateService gateService;
+    private final SpacedRepetitionService spacedRepetitionService;
+    private final ProgressPort progressPort;
+    private final StreakService streakService;
 
     public ReciteOrchestrationService(QuestionPort questionPort,
                                        ReciteSessionPort sessionPort,
                                        ScoreSlotPort scoreSlotPort,
                                        LlmPort llmPort,
                                        ReciteRecordPort recordPort,
-                                       ReciteGateService gateService) {
+                                       ReciteGateService gateService,
+                                       SpacedRepetitionService spacedRepetitionService,
+                                       ProgressPort progressPort,
+                                       StreakService streakService) {
         this.questionPort = questionPort;
         this.sessionPort = sessionPort;
         this.scoreSlotPort = scoreSlotPort;
         this.llmPort = llmPort;
         this.recordPort = recordPort;
         this.gateService = gateService;
+        this.spacedRepetitionService = spacedRepetitionService;
+        this.progressPort = progressPort;
+        this.streakService = streakService;
     }
 
     /** 开始背诵 — 拉题 + 创建会话 */
@@ -142,7 +156,18 @@ public class ReciteOrchestrationService {
                 .build();
         recordPort.save(record);
 
-        // 7. 更新会话
+        // 7. 更新间隔重复掌握度
+        Optional<UserProgressEntity> current = progressPort.findByUserAndQuestion(userId, questionId);
+        UserProgressEntity updated = spacedRepetitionService.calculateAfterScore(
+                current.orElse(null), vo.score(), userId, questionId, question.getModuleKey());
+        if (current.isPresent()) {
+            updated.setId(current.get().getId());
+            progressPort.update(updated);
+        } else {
+            progressPort.save(updated);
+        }
+
+        // 8. 更新会话
         session.setCurrentIndex(session.getCurrentIndex() + 1);
         session.setFollowUpDepth(0);
         if (session.getCurrentIndex() < session.getTotalQuestions()) {
@@ -202,6 +227,10 @@ public class ReciteOrchestrationService {
         // 4. 标记完成
         session.setStatus("FINISHED");
         sessionPort.update(session);
+
+        // 5. 更新连续天数
+        streakService.checkIn(userId);
+
         log.info("结束背诵: userId={}, sid={}, 均分={}", userId, sessionId, report.averageScore());
 
         return report;
