@@ -215,3 +215,30 @@ VALUES
     ('ai-openclaw',     'AI-OpenClaw',  'Agent 工程化框架深度', 37),
     ('ai-agent',        'AI-Agent项目', 'Agent 架构全解', 38)
 ON CONFLICT (module_key) DO NOTHING;
+
+-- ============================================
+-- 10. 链路追踪表（Phase 9 可观测性）
+-- ============================================
+CREATE TABLE IF NOT EXISTS trace_runs (
+    id           BIGSERIAL PRIMARY KEY,
+    trace_id     VARCHAR(32) NOT NULL,
+    user_id      BIGINT,
+    entry_method VARCHAR(128) NOT NULL,
+    status       VARCHAR(16) NOT NULL DEFAULT 'RUNNING',
+    latency_ms   BIGINT,
+    error_msg    TEXT,
+    created_at   TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_tr_trace_id ON trace_runs(trace_id);
+CREATE INDEX IF NOT EXISTS idx_tr_created ON trace_runs(created_at);
+
+CREATE TABLE IF NOT EXISTS trace_nodes (
+    id           BIGSERIAL PRIMARY KEY,
+    trace_id     VARCHAR(32) NOT NULL,
+    node_name    VARCHAR(128) NOT NULL,
+    node_type    VARCHAR(32) NOT NULL,
+    status       VARCHAR(16) NOT NULL DEFAULT 'RUNNING',
+    latency_ms   BIGINT,
+    created_at   TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_tn_trace_id ON trace_nodes(trace_id);
