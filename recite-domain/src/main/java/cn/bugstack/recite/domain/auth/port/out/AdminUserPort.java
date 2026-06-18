@@ -9,4 +9,7 @@ public interface AdminUserPort {
 
     /** 按用户名查询 */
     AdminUserEntity findByUsername(String username);
+
+    /** 是否存在指定 ID（角色判断用） */
+    boolean existsById(long id);
 }

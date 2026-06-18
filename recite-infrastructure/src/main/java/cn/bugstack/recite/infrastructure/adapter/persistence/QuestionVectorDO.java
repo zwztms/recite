@@ -19,7 +19,8 @@ public class QuestionVectorDO {
     private String category;
     private String tags;
     private Integer difficulty;
-    /** pgvector 1024 维向量，MyBatis Plus 通过自定义 type handler 或原生 SQL 处理 */
+    /** pgvector 1024 维向量 */
+    @com.baomidou.mybatisplus.annotation.TableField(typeHandler = PvVectorTypeHandler.class)
     private float[] embedding;
     /** 相似度得分（SQL 计算列，非表字段） */
     @com.baomidou.mybatisplus.annotation.TableField(exist = false)

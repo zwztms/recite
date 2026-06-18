@@ -40,7 +40,6 @@ public class AdminAuthController {
         }
 
         StpUtil.login(admin.getId());
-        StpUtil.getSession().set("role", "ADMIN");
 
         return Response.ok(Map.of("token", StpUtil.getTokenValue(), "username", admin.getUsername()));
     }

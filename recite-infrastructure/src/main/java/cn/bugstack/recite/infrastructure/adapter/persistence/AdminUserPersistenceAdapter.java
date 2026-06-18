@@ -24,6 +24,12 @@ public class AdminUserPersistenceAdapter implements AdminUserPort {
         return toEntity(d);
     }
 
+    @Override
+    public boolean existsById(long id) {
+        return mapper.selectCount(
+                new LambdaQueryWrapper<AdminUserDO>().eq(AdminUserDO::getId, id)) > 0;
+    }
+
     // ---- 转换 ----
 
     private AdminUserEntity toEntity(AdminUserDO d) {

@@ -8,3 +8,4 @@ dist/
 .env
 *.log
 .superpowers/
+recite-app/docs/import/backup/

@@ -266,13 +266,21 @@ public class ReciteOrchestrationService {
         List<String> weaknesses = moduleScores.entrySet().stream()
                 .filter(e -> e.getValue() <= 4).map(java.util.Map.Entry::getKey).toList();
 
-        // 4. 发 MQ 异步生成报告
+        // 4. 发 MQ 异步生成报告（MQ 不可用不影响完成流程）
         List<Long> recordIds = records.stream()
                 .map(ReciteRecordEntity::getId).toList();
-        reportMessagePort.sendReportRequest(userId, sessionId, recordIds);
+        try {
+            reportMessagePort.sendReportRequest(userId, sessionId, recordIds);
+        } catch (Exception e) {
+            log.warn("发送报告 MQ 消息失败（可能 RocketMQ 不可用）: {}", e.getMessage());
+        }
 
-        // 4b. 发 MQ 异步评估徽章
-        achievementMessagePort.sendAchievementRequest(userId, sessionId);
+        // 4b. 发 MQ 异步评估徽章（MQ 不可用不影响完成流程）
+        try {
+            achievementMessagePort.sendAchievementRequest(userId, sessionId);
+        } catch (Exception e) {
+            log.warn("发送成就 MQ 消息失败（可能 RocketMQ 不可用）: {}", e.getMessage());
+        }
 
         // 5. 标记完成
         session.setStatus("FINISHED");

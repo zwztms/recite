@@ -50,7 +50,7 @@ services:
       - "10912:10912"
     command: sh mqbroker -n rocketmq-namesrv:9876
     environment:
-      JAVA_OPT_EXT: "-server -Xms512m -Xmx512m"
+      JAVA_OPT_EXT: "-server -Xms512m -Xmx512m -Drocketmq.brokerIP1=127.0.0.1"
 
 volumes:
   v2_postgres_data:
