@@ -31,6 +31,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/auth/**",
                         "/admin/auth/**",
+                        "/admin/monitor/**",
                         "/doc.html",
                         "/v3/**",
                         "/error"
