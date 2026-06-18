@@ -168,6 +168,32 @@ public class ReciteController implements IReciteService {
     }
 
     @Override
+    public Response<QuestionDTO> getCurrentQuestion(String sid) {
+        Long userId = UserContext.getUserId();
+        var sessionOpt = sessionPort.findById(sid);
+        if (sessionOpt.isEmpty()) {
+            return Response.fail("404", "会话不存在");
+        }
+        ReciteSession session = sessionOpt.get();
+        if (session.getCurrentQuestionId() == null) {
+            return Response.fail("404", "没有当前题目");
+        }
+        QuestionEntity q = questionPort.getById(session.getCurrentQuestionId());
+        if (q == null) {
+            return Response.fail("404", "题目不存在");
+        }
+        QuestionDTO dto = new QuestionDTO();
+        dto.setId(q.getId());
+        dto.setQuestion(q.getQuestion());
+        dto.setContent(q.getContent());
+        dto.setModuleKey(q.getModuleKey());
+        dto.setCategory(q.getCategory());
+        dto.setTags(q.getTags());
+        dto.setDifficulty(q.getDifficulty());
+        return Response.ok(dto);
+    }
+
+    @Override
     public Response<List<ReciteRecordDTO>> getHistory(int limit) {
         Long userId = UserContext.getUserId();
         List<ReciteRecordEntity> records = recordPort.findByUserId(userId, limit);

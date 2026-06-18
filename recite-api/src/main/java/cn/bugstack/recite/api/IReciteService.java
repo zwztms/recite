@@ -33,6 +33,10 @@ public interface IReciteService {
     @GetMapping("/{sid}")
     Response<ReciteSessionDTO> getSession(@PathVariable String sid);
 
+    /** 获取会话当前题目（下一题用） */
+    @GetMapping("/{sid}/current-question")
+    Response<QuestionDTO> getCurrentQuestion(@PathVariable String sid);
+
     /** 查看历史 */
     @GetMapping("/history")
     Response<List<ReciteRecordDTO>> getHistory(@RequestParam(defaultValue = "20") int limit);

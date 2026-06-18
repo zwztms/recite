@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/* ==== 背诵助手 V2 视觉变量 ==== */
+
+@theme {
+  --color-warm: #f5f0eb;
+  --color-coral: #f97316;
+  --color-coral-light: #fff7ed;
+  --color-coral-border: #fed7aa;
+  --color-surface: #ffffff;
+  --color-border: #e7e5e4;
+  --color-text-primary: #1c1917;
+  --color-text-secondary: #78716c;
+  --color-text-muted: #a8a29e;
+  --color-success-bg: #f0fdf4;
+  --color-success-text: #166534;
+  --color-warning-bg: #fffbeb;
+  --color-warning-text: #92400e;
+  --color-danger-bg: #fef2f2;
+  --color-danger-text: #991b1b;
+}
+
+/* 页面底色 */
+body {
+  background: #f5f0eb;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 3px; }
