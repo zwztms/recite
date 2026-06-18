@@ -2,6 +2,7 @@ package cn.bugstack.recite.infrastructure.adapter.persistence;
 
 import cn.bugstack.recite.domain.recite.model.entity.ReciteRecordEntity;
 import cn.bugstack.recite.domain.recite.port.out.ReciteRecordPort;
+import cn.bugstack.recite.types.annotation.ReciteTraceNode;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -18,6 +19,7 @@ public class ReciteRecordAdapter implements ReciteRecordPort {
 
     private final ReciteRecordMapper mapper;
 
+    @ReciteTraceNode(type = "DB", name = "保存背诵记录")
     @Override
     public ReciteRecordEntity save(ReciteRecordEntity record) {
         ReciteRecordDO d = toDO(record);

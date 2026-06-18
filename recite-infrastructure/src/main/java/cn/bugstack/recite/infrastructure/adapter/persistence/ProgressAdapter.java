@@ -2,6 +2,7 @@ package cn.bugstack.recite.infrastructure.adapter.persistence;
 
 import cn.bugstack.recite.domain.progress.model.entity.UserProgressEntity;
 import cn.bugstack.recite.domain.progress.port.out.ProgressPort;
+import cn.bugstack.recite.types.annotation.ReciteTraceNode;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -39,11 +40,13 @@ public class ProgressAdapter implements ProgressPort {
                 .map(this::toEntity).toList();
     }
 
+    @ReciteTraceNode(type = "DB", name = "保存掌握度")
     @Override
     public void save(UserProgressEntity progress) {
         mapper.insert(toDO(progress));
     }
 
+    @ReciteTraceNode(type = "DB", name = "更新掌握度")
     @Override
     public void update(UserProgressEntity progress) {
         UserProgressDO d = toDO(progress);

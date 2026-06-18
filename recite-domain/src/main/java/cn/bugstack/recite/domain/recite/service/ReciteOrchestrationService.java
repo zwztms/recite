@@ -1,6 +1,7 @@
 package cn.bugstack.recite.domain.recite.service;
 
 import cn.bugstack.recite.domain.knowledge.model.entity.QuestionEntity;
+import cn.bugstack.recite.types.annotation.ReciteTraceRoot;
 import cn.bugstack.recite.domain.knowledge.model.valueobj.EmbeddedQuestionVO;
 import cn.bugstack.recite.domain.knowledge.port.out.QuestionPort;
 import cn.bugstack.recite.domain.progress.model.entity.UserProgressEntity;
@@ -128,6 +129,7 @@ public class ReciteOrchestrationService {
     }
 
     /** 提交答案 → 校验 + 抢槽 + LLM 评分 + 释放 + 存记录 + 更新会话 */
+    @ReciteTraceRoot("submitAnswer")
     public ScoreResultVO submitAnswer(Long userId, String sessionId,
                                        String questionId, String answer) {
         // 1. 校验

@@ -1,6 +1,7 @@
 package cn.bugstack.recite.infrastructure.adapter.cache;
 
 import cn.bugstack.recite.domain.recite.port.out.ScoreSlotPort;
+import cn.bugstack.recite.types.annotation.ReciteTraceNode;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RSemaphore;
 import org.redisson.api.RedissonClient;
@@ -26,6 +27,7 @@ public class ScoreSlotAdapter implements ScoreSlotPort {
         this.semaphore.trySetPermits(MAX_PERMITS);
     }
 
+    @ReciteTraceNode(type = "CACHE", name = "获取评分槽")
     @Override
     public boolean tryAcquire(long timeoutMs) {
         try {

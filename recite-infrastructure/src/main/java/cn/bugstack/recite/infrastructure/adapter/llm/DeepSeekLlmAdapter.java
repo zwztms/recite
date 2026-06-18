@@ -5,6 +5,7 @@ import cn.bugstack.recite.domain.recite.model.entity.ReciteRecordEntity;
 import cn.bugstack.recite.domain.recite.model.valueobj.ScoreResultVO;
 import cn.bugstack.recite.domain.recite.model.valueobj.SessionReportVO;
 import cn.bugstack.recite.domain.recite.port.out.LlmPort;
+import cn.bugstack.recite.types.annotation.ReciteTraceNode;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -46,6 +47,7 @@ public class DeepSeekLlmAdapter implements LlmPort {
                 .build();
     }
 
+    @ReciteTraceNode(type = "LLM", name = "DeepSeek评分")
     @Override
     public ScoreResultVO score(QuestionEntity question, String userAnswer) {
         String prompt = """

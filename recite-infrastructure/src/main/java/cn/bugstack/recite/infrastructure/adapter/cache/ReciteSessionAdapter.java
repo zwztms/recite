@@ -2,6 +2,7 @@ package cn.bugstack.recite.infrastructure.adapter.cache;
 
 import cn.bugstack.recite.domain.recite.model.entity.ReciteSession;
 import cn.bugstack.recite.domain.recite.port.out.ReciteSessionPort;
+import cn.bugstack.recite.types.annotation.ReciteTraceNode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -47,6 +48,7 @@ public class ReciteSessionAdapter implements ReciteSessionPort {
         return Optional.ofNullable(fromJson(json));
     }
 
+    @ReciteTraceNode(type = "CACHE", name = "更新会话缓存")
     @Override
     public void update(ReciteSession session) {
         // 先取当前 TTL，写入后恢复
