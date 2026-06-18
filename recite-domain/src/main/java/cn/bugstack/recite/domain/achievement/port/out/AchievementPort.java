@@ -16,4 +16,7 @@ public interface AchievementPort {
 
     /** 用户累计获得徽章数 */
     int countByUserId(Long userId);
+
+    /** 查用户已获得徽章 key → 获得时间 */
+    java.util.Map<String, LocalDateTime> findEarnedBadgeMap(Long userId);
 }

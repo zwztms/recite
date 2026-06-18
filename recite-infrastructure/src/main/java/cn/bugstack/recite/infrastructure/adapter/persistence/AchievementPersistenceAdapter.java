@@ -39,4 +39,15 @@ public class AchievementPersistenceAdapter implements AchievementPort {
         return Math.toIntExact(mapper.selectCount(new LambdaQueryWrapper<AchievementLogDO>()
                 .eq(AchievementLogDO::getUserId, userId)));
     }
+
+    @Override
+    public java.util.Map<String, java.time.LocalDateTime> findEarnedBadgeMap(Long userId) {
+        return mapper.selectList(new LambdaQueryWrapper<AchievementLogDO>()
+                        .eq(AchievementLogDO::getUserId, userId))
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        AchievementLogDO::getBadgeKey,
+                        AchievementLogDO::getEarnedAt,
+                        (a, b) -> a));
+    }
 }
