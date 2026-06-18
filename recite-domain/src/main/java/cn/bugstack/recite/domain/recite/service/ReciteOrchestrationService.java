@@ -13,6 +13,7 @@ import cn.bugstack.recite.domain.recite.model.valueobj.ScoreResultVO;
 import cn.bugstack.recite.domain.recite.model.valueobj.SessionReportVO;
 import cn.bugstack.recite.domain.recite.port.out.LlmPort;
 import cn.bugstack.recite.domain.recite.port.out.ReciteRecordPort;
+import cn.bugstack.recite.domain.recite.port.out.AchievementMessagePort;
 import cn.bugstack.recite.domain.recite.port.out.ReciteSessionPort;
 import cn.bugstack.recite.domain.recite.port.out.ReportMessagePort;
 import cn.bugstack.recite.domain.recite.port.out.ScoreSlotPort;
@@ -43,6 +44,7 @@ public class ReciteOrchestrationService {
     private final ProgressPort progressPort;
     private final StreakService streakService;
     private final ReportMessagePort reportMessagePort;
+    private final AchievementMessagePort achievementMessagePort;
 
     public ReciteOrchestrationService(QuestionPort questionPort,
                                        ReciteSessionPort sessionPort,
@@ -53,7 +55,8 @@ public class ReciteOrchestrationService {
                                        SpacedRepetitionService spacedRepetitionService,
                                        ProgressPort progressPort,
                                        StreakService streakService,
-                                       ReportMessagePort reportMessagePort) {
+                                       ReportMessagePort reportMessagePort,
+                                       AchievementMessagePort achievementMessagePort) {
         this.questionPort = questionPort;
         this.sessionPort = sessionPort;
         this.scoreSlotPort = scoreSlotPort;
@@ -64,6 +67,7 @@ public class ReciteOrchestrationService {
         this.progressPort = progressPort;
         this.streakService = streakService;
         this.reportMessagePort = reportMessagePort;
+        this.achievementMessagePort = achievementMessagePort;
     }
 
     /** 开始背诵 — 拉题 + 创建会话 */
@@ -263,6 +267,9 @@ public class ReciteOrchestrationService {
         List<Long> recordIds = records.stream()
                 .map(ReciteRecordEntity::getId).toList();
         reportMessagePort.sendReportRequest(userId, sessionId, recordIds);
+
+        // 4b. 发 MQ 异步评估徽章
+        achievementMessagePort.sendAchievementRequest(userId, sessionId);
 
         // 5. 标记完成
         session.setStatus("FINISHED");
