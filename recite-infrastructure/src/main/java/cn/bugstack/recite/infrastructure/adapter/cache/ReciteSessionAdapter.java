@@ -40,6 +40,7 @@ public class ReciteSessionAdapter implements ReciteSessionPort {
         bucket.set(json, TTL);
     }
 
+    @ReciteTraceNode(type = "CACHE", name = "读取背诵会话")
     @Override
     public Optional<ReciteSession> findById(String sessionId) {
         RBucket<String> bucket = redisson.getBucket(key(sessionId));

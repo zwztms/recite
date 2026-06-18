@@ -2,6 +2,7 @@ package cn.bugstack.recite.infrastructure.adapter.persistence;
 
 import cn.bugstack.recite.domain.progress.model.entity.UserStreakEntity;
 import cn.bugstack.recite.domain.progress.port.out.StreakPort;
+import cn.bugstack.recite.types.annotation.ReciteTraceNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -16,17 +17,20 @@ public class StreakAdapter implements StreakPort {
 
     private final UserStreakMapper mapper;
 
+    @ReciteTraceNode(type = "DB", name = "查询连续天数")
     @Override
     public Optional<UserStreakEntity> findByUserId(Long userId) {
         UserStreakDO d = mapper.selectById(userId);
         return Optional.ofNullable(d).map(this::toEntity);
     }
 
+    @ReciteTraceNode(type = "DB", name = "新建连续天数")
     @Override
     public void save(UserStreakEntity streak) {
         mapper.insert(toDO(streak));
     }
 
+    @ReciteTraceNode(type = "DB", name = "更新连续天数")
     @Override
     public void update(UserStreakEntity streak) {
         mapper.updateById(toDO(streak));

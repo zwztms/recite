@@ -2,6 +2,7 @@ package cn.bugstack.recite.infrastructure.adapter.mq;
 
 import cn.bugstack.recite.domain.achievement.model.event.AchievementRequestMessage;
 import cn.bugstack.recite.domain.recite.port.out.AchievementMessagePort;
+import cn.bugstack.recite.types.annotation.ReciteTraceNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
@@ -19,6 +20,7 @@ public class AchievementMessageAdapter implements AchievementMessagePort {
 
     private final RocketMQTemplate rocketMQTemplate;
 
+    @ReciteTraceNode(type = "MQ", name = "发送成就消息")
     @Override
     public void sendAchievementRequest(Long userId, String sessionId) {
         AchievementRequestMessage msg = new AchievementRequestMessage(userId, sessionId);

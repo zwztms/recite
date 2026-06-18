@@ -238,6 +238,7 @@ public class ReciteOrchestrationService {
     }
 
     /** 结束背诵 → Java 统计 + MQ 异步报告 + 标记完成 */
+    @ReciteTraceRoot("finishRecite")
     public SessionReportVO finishRecite(Long userId, String sessionId) {
         // 1. 校验
         ReciteSession session = sessionPort.findById(sessionId)

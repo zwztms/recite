@@ -39,6 +39,7 @@ public class ReciteRecordAdapter implements ReciteRecordPort {
         }
     }
 
+    @ReciteTraceNode(type = "DB", name = "查询背诵记录")
     @Override
     public List<ReciteRecordEntity> findBySessionId(Long userId, String sessionId) {
         return mapper.selectList(new LambdaQueryWrapper<ReciteRecordDO>()
