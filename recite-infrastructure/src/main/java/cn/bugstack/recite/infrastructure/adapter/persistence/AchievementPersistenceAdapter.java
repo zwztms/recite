@@ -2,6 +2,7 @@ package cn.bugstack.recite.infrastructure.adapter.persistence;
 
 import cn.bugstack.recite.domain.achievement.model.entity.AchievementLog;
 import cn.bugstack.recite.domain.achievement.port.out.AchievementPort;
+import cn.bugstack.recite.types.annotation.ReciteTraceNode;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -18,6 +19,7 @@ public class AchievementPersistenceAdapter implements AchievementPort {
 
     private final AchievementLogMapper mapper;
 
+    @ReciteTraceNode(type = "DB", name = "写入徽章记录")
     @Override
     public void save(Long userId, String badgeKey, LocalDateTime earnedAt) {
         AchievementLogDO d = new AchievementLogDO();

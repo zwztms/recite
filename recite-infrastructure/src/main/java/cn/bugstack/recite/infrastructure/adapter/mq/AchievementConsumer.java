@@ -12,6 +12,7 @@ import cn.bugstack.recite.domain.progress.port.out.ProgressPort;
 import cn.bugstack.recite.domain.progress.port.out.StreakPort;
 import cn.bugstack.recite.domain.recite.model.entity.ReciteRecordEntity;
 import cn.bugstack.recite.domain.recite.port.out.ReciteRecordPort;
+import cn.bugstack.recite.types.annotation.ReciteTraceRoot;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
@@ -63,6 +64,7 @@ public class AchievementConsumer implements RocketMQListener<AchievementRequestM
         this.achievementService = achievementService;
     }
 
+    @ReciteTraceRoot("achievementEvaluate")
     @Override
     public void onMessage(AchievementRequestMessage msg) {
         Long userId = msg.getUserId();

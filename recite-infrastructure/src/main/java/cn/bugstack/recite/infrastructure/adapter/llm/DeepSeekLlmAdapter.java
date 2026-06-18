@@ -178,6 +178,7 @@ public class DeepSeekLlmAdapter implements LlmPort {
 
     // ==== Phase 7: 学习档案报告（含历史上下文） ====
 
+    @ReciteTraceNode(type = "LLM", name = "LLM生成报告")
     @Override
     public String generateJournalReport(List<ReciteRecordEntity> records,
                                          List<String> recentJournalSummaries) {

@@ -2,6 +2,7 @@ package cn.bugstack.recite.infrastructure.adapter.persistence;
 
 import cn.bugstack.recite.domain.report.model.entity.LearningJournal;
 import cn.bugstack.recite.domain.report.port.out.ReportPort;
+import cn.bugstack.recite.types.annotation.ReciteTraceNode;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -17,6 +18,7 @@ public class ReportPersistenceAdapter implements ReportPort {
 
     private final LearningJournalMapper mapper;
 
+    @ReciteTraceNode(type = "DB", name = "保存学习档案")
     @Override
     public void save(LearningJournal journal) {
         mapper.insert(toDO(journal));

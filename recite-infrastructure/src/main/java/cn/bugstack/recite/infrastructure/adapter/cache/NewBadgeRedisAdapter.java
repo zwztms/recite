@@ -1,6 +1,7 @@
 package cn.bugstack.recite.infrastructure.adapter.cache;
 
 import cn.bugstack.recite.domain.achievement.port.out.NewBadgePort;
+import cn.bugstack.recite.types.annotation.ReciteTraceNode;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RSet;
 import org.redisson.api.RedissonClient;
@@ -27,6 +28,7 @@ public class NewBadgeRedisAdapter implements NewBadgePort {
         this.redisson = redisson;
     }
 
+    @ReciteTraceNode(type = "CACHE", name = "标记新徽章")
     @Override
     public void addNewBadges(Long userId, List<String> badgeKeys) {
         if (badgeKeys == null || badgeKeys.isEmpty()) return;

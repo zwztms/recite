@@ -2,6 +2,7 @@ package cn.bugstack.recite.infrastructure.adapter.mq;
 
 import cn.bugstack.recite.domain.report.model.event.ReportRequestMessage;
 import cn.bugstack.recite.domain.report.service.ReportService;
+import cn.bugstack.recite.types.annotation.ReciteTraceRoot;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
@@ -24,6 +25,7 @@ public class ReportGenerateConsumer implements RocketMQListener<ReportRequestMes
         this.reportService = reportService;
     }
 
+    @ReciteTraceRoot("reportGenerate")
     @Override
     public void onMessage(ReportRequestMessage msg) {
         log.info("收到报告生成请求: userId={}, sessionId={}", msg.getUserId(), msg.getSessionId());
