@@ -26,6 +26,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkRole("ADMIN")))
                 .addPathPatterns("/admin/knowledge/**");
 
+        // Sa-Token 鉴权：运维监控需管理员
+        registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkRole("ADMIN")))
+                .addPathPatterns("/admin/monitor/**");
+
         // 用户上下文注入（需在鉴权之后，此时 token 已验证）
         registry.addInterceptor(userContextInterceptor)
                 .excludePathPatterns(
