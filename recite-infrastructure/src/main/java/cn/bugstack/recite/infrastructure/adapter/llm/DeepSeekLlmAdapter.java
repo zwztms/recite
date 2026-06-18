@@ -64,7 +64,7 @@ public class DeepSeekLlmAdapter implements LlmPort {
         try {
             var map = gson.<Map<String, Object>>fromJson(json,
                     new TypeToken<Map<String, Object>>() {}.getType());
-            int score = ((Double) map.get("score")).intValue();
+            int score = ((Number) map.get("score")).intValue();
             @SuppressWarnings("unchecked")
             List<String> correct = ((List<String>) map.getOrDefault("correctPoints", List.of()));
             @SuppressWarnings("unchecked")
@@ -172,5 +172,49 @@ public class DeepSeekLlmAdapter implements LlmPort {
             s = s.replaceAll("```[a-z]*\\s*", "").replaceAll("```", "").trim();
         }
         return s;
+    }
+
+    // ==== Phase 7: 学习档案报告（含历史上下文） ====
+
+    @Override
+    public String generateJournalReport(List<ReciteRecordEntity> records,
+                                         List<String> recentJournalSummaries) {
+        if (records == null || records.isEmpty()) return "{}";
+
+        double total = records.stream().filter(r -> r.getScore() != null)
+                .mapToInt(ReciteRecordEntity::getScore).sum();
+        double avg = records.stream().filter(r -> r.getScore() != null)
+                .mapToInt(ReciteRecordEntity::getScore).average().orElse(0);
+        int count = records.size();
+
+        // 按模块分组
+        var moduleScores = records.stream()
+                .filter(r -> r.getScore() != null)
+                .collect(Collectors.groupingBy(ReciteRecordEntity::getModuleKey,
+                        Collectors.averagingInt(ReciteRecordEntity::getScore)));
+
+        String modSummary = moduleScores.entrySet().stream()
+                .map(e -> e.getKey() + "均分" + String.format("%.1f", e.getValue()))
+                .collect(Collectors.joining(","));
+
+        // 历史上下文
+        String historyContext = (recentJournalSummaries != null && !recentJournalSummaries.isEmpty())
+                ? recentJournalSummaries.stream().limit(5)
+                    .map(s -> s.length() > 200 ? s.substring(0, 200) + "..." : s)
+                    .collect(Collectors.joining("\n"))
+                : "无历史记录";
+
+        String prompt = """
+                你是学习顾问。根据以下背诵记录和最近学习档案生成报告。
+
+                【本轮记录】共%d题，总分%.0f，平均分%.1f。各模块均分：%s。
+                【最近5次档案】%s
+
+                请严格返回以下JSON格式（不要markdown包裹）：
+                {"summary":"一句话总结","strengths":["优势1","优势2"],"weaknesses":["薄弱1"],"advice":"综合建议","trendComment":"趋势分析","weakTags":["标签1"],"moduleScores":[{"moduleKey":"","moduleName":"","avgScore":0,"count":0}]}
+                """.formatted(count, total, avg, modSummary, historyContext);
+
+        String raw = callApi(prompt);
+        return extractJson(raw);
     }
 }

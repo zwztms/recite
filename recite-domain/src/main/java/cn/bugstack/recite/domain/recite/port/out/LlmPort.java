@@ -20,4 +20,7 @@ public interface LlmPort {
 
     /** 生成报告 */
     SessionReportVO generateReport(List<ReciteRecordEntity> records);
+
+    /** 生成学习档案报告（含历史上下文），返回结构化 JSON 存入 learning_journal */
+    String generateJournalReport(List<ReciteRecordEntity> records, List<String> recentJournalSummaries);
 }

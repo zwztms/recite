@@ -14,12 +14,14 @@ import cn.bugstack.recite.domain.recite.model.valueobj.SessionReportVO;
 import cn.bugstack.recite.domain.recite.port.out.LlmPort;
 import cn.bugstack.recite.domain.recite.port.out.ReciteRecordPort;
 import cn.bugstack.recite.domain.recite.port.out.ReciteSessionPort;
+import cn.bugstack.recite.domain.recite.port.out.ReportMessagePort;
 import cn.bugstack.recite.domain.recite.port.out.ScoreSlotPort;
 import cn.bugstack.recite.types.enums.ReciteMode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,6 +42,7 @@ public class ReciteOrchestrationService {
     private final SpacedRepetitionService spacedRepetitionService;
     private final ProgressPort progressPort;
     private final StreakService streakService;
+    private final ReportMessagePort reportMessagePort;
 
     public ReciteOrchestrationService(QuestionPort questionPort,
                                        ReciteSessionPort sessionPort,
@@ -49,7 +52,8 @@ public class ReciteOrchestrationService {
                                        ReciteGateService gateService,
                                        SpacedRepetitionService spacedRepetitionService,
                                        ProgressPort progressPort,
-                                       StreakService streakService) {
+                                       StreakService streakService,
+                                       ReportMessagePort reportMessagePort) {
         this.questionPort = questionPort;
         this.sessionPort = sessionPort;
         this.scoreSlotPort = scoreSlotPort;
@@ -59,6 +63,7 @@ public class ReciteOrchestrationService {
         this.spacedRepetitionService = spacedRepetitionService;
         this.progressPort = progressPort;
         this.streakService = streakService;
+        this.reportMessagePort = reportMessagePort;
     }
 
     /** 开始背诵 — 拉题 + 创建会话 */
@@ -73,7 +78,21 @@ public class ReciteOrchestrationService {
                 vos = questionPort.searchByModule(key, count);
             }
             case RANDOM -> vos = questionPort.search("", moduleKeys, count);
-            case REVIEW -> throw new UnsupportedOperationException("REVIEW 模式待 Phase 6 progress 实现");
+            case REVIEW -> {
+                List<UserProgressEntity> dueItems = progressPort.findDueQuestions(userId, count);
+                if (dueItems.isEmpty()) {
+                    throw new cn.bugstack.recite.domain.recite.exception.ReciteException(
+                            cn.bugstack.recite.types.enums.ResponseCode.NOT_FOUND.getCode(),
+                            "暂无到期复习题目");
+                }
+                vos = new ArrayList<>();
+                for (UserProgressEntity p : dueItems) {
+                    QuestionEntity q = questionPort.getById(p.getQuestionId());
+                    if (q != null) {
+                        vos.add(new EmbeddedQuestionVO(q, p.getMasteryScore() / 100.0));
+                    }
+                }
+            }
             default -> throw new IllegalArgumentException("未知背诵模式: " + mode);
         }
 
@@ -123,22 +142,25 @@ public class ReciteOrchestrationService {
                     "题目不存在");
         }
 
-        // 3. 抢评分槽位
-        boolean acquired = scoreSlotPort.tryAcquire(30_000);
-        if (!acquired) {
-            throw new cn.bugstack.recite.domain.recite.exception.ReciteException(
-                    cn.bugstack.recite.types.enums.ResponseCode.LLM_TIMEOUT.getCode(),
-                    "评分排队超时，请稍后重试");
-        }
-
+        // 3. 评分（REVIEW 自评 vs 其他 LLM 评分）
         ScoreResultVO vo;
-        try {
-            // 4. LLM 评分
-            vo = llmPort.score(question, answer);
-            gateService.validateScore(vo.score());
-        } finally {
-            // 5. 释放槽位
-            scoreSlotPort.release();
+        if (session.getMode() == cn.bugstack.recite.types.enums.ReciteMode.REVIEW) {
+            // REVIEW 模式：自评映射，不调 LLM，不抢槽位
+            int score = mapSelfAssessment(answer);
+            vo = new ScoreResultVO(score, List.of(), List.of(), "", "");
+        } else {
+            boolean acquired = scoreSlotPort.tryAcquire(30_000);
+            if (!acquired) {
+                throw new cn.bugstack.recite.domain.recite.exception.ReciteException(
+                        cn.bugstack.recite.types.enums.ResponseCode.LLM_TIMEOUT.getCode(),
+                        "评分排队超时，请稍后重试");
+            }
+            try {
+                vo = llmPort.score(question, answer);
+                gateService.validateScore(vo.score());
+            } finally {
+                scoreSlotPort.release();
+            }
         }
 
         // 6. 存背诵记录
@@ -209,7 +231,7 @@ public class ReciteOrchestrationService {
         return feedback;
     }
 
-    /** 结束背诵 → 统计 + LLM 报告 + 标记完成 */
+    /** 结束背诵 → Java 统计 + MQ 异步报告 + 标记完成 */
     public SessionReportVO finishRecite(Long userId, String sessionId) {
         // 1. 校验
         ReciteSession session = sessionPort.findById(sessionId)
@@ -221,18 +243,45 @@ public class ReciteOrchestrationService {
         // 2. 查全部记录
         List<ReciteRecordEntity> records = recordPort.findBySessionId(userId, sessionId);
 
-        // 3. LLM 生成报告（内含 Java 统计）
-        SessionReportVO report = llmPort.generateReport(records);
+        // 3. Java 基础统计（前端即时展示，LLM 评语由 MQ 消费者异步生成）
+        double total = records.stream().filter(r -> r.getScore() != null)
+                .mapToInt(ReciteRecordEntity::getScore).sum();
+        double avg = records.stream().filter(r -> r.getScore() != null)
+                .mapToInt(ReciteRecordEntity::getScore).average().orElse(0);
+        int count = records.size();
 
-        // 4. 标记完成
+        var moduleScores = records.stream()
+                .filter(r -> r.getScore() != null)
+                .collect(java.util.stream.Collectors.groupingBy(ReciteRecordEntity::getModuleKey,
+                        java.util.stream.Collectors.averagingInt(ReciteRecordEntity::getScore)));
+        List<String> strengths = moduleScores.entrySet().stream()
+                .filter(e -> e.getValue() >= 7).map(java.util.Map.Entry::getKey).toList();
+        List<String> weaknesses = moduleScores.entrySet().stream()
+                .filter(e -> e.getValue() <= 4).map(java.util.Map.Entry::getKey).toList();
+
+        // 4. 发 MQ 异步生成报告
+        List<Long> recordIds = records.stream()
+                .map(ReciteRecordEntity::getId).toList();
+        reportMessagePort.sendReportRequest(userId, sessionId, recordIds);
+
+        // 5. 标记完成
         session.setStatus("FINISHED");
         sessionPort.update(session);
 
-        // 5. 更新连续天数
+        // 6. 更新连续天数
         streakService.checkIn(userId);
 
-        log.info("结束背诵: userId={}, sid={}, 均分={}", userId, sessionId, report.averageScore());
+        log.info("结束背诵: userId={}, sid={}, 均分={}", userId, sessionId, avg);
 
-        return report;
+        return new SessionReportVO(total, avg, count, strengths, weaknesses, "报告生成中，请稍后查看");
+    }
+
+    /** REVIEW 自评映射：想起→9, 不确定→5, 忘了→2 */
+    private int mapSelfAssessment(String answer) {
+        if (answer == null) return 5;
+        String a = answer.trim();
+        if (a.contains("想起")) return 9;
+        if (a.contains("忘")) return 2;
+        return 5; // 不确定 / 其他
     }
 }
