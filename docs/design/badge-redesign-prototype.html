@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>徽章系统重设计 — 原型预览</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { font-family: 'Inter', system-ui, sans-serif; }
+  body { background: #f5f0eb; }
+
+  /* ===== 稀有度光效 ===== */
+  .tier-copper.earned  { box-shadow: 0 0 12px rgba(205,127,50,0.3), inset 0 1px 0 rgba(255,255,255,0.4); }
+  .tier-silver.earned  { box-shadow: 0 0 16px rgba(192,192,192,0.35), inset 0 1px 0 rgba(255,255,255,0.5); }
+  .tier-gold.earned    { box-shadow: 0 0 20px rgba(255,215,0,0.4), inset 0 1px 0 rgba(255,255,255,0.5); }
+  .tier-legendary.earned { box-shadow: 0 0 28px rgba(224,64,251,0.35), 0 0 8px rgba(124,77,255,0.3), inset 0 1px 0 rgba(255,255,255,0.5); animation: legendaryPulse 2.5s ease-in-out infinite; }
+  .tier-hidden.earned  { box-shadow: 0 0 14px rgba(26,26,46,0.3), inset 0 1px 0 rgba(255,255,255,0.2); }
+
+  @keyframes legendaryPulse {
+    0%, 100% { box-shadow: 0 0 28px rgba(224,64,251,0.35), 0 0 8px rgba(124,77,255,0.3); }
+    50%      { box-shadow: 0 0 40px rgba(224,64,251,0.55), 0 0 14px rgba(124,77,255,0.45); }
+  }
+
+  /* ===== 稀有度边框色 ===== */
+  .tier-copper.earned  { border-color: #CD7F32; background: linear-gradient(135deg, #fff9f0 0%, #fff 100%); }
+  .tier-silver.earned  { border-color: #A0A0A0; background: linear-gradient(135deg, #f8f8fa 0%, #fff 100%); }
+  .tier-gold.earned    { border-color: #DAA520; background: linear-gradient(135deg, #fffef5 0%, #fffef0 100%); }
+  .tier-legendary.earned { border-color: #B44CF0; background: linear-gradient(135deg, #fdf5ff 0%, #faf5ff 100%); }
+  .tier-hidden.earned  { border-color: #444; background: linear-gradient(135deg, #1a1a2e 0%, #222 100%); color: #ccc; }
+
+  /* ===== icon 渐变 ===== */
+  .icon-copper.earned   { background: linear-gradient(135deg, #CD7F32, #B87333); }
+  .icon-silver.earned   { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); }
+  .icon-gold.earned     { background: linear-gradient(135deg, #FFD700, #F5A623); }
+  .icon-legendary.earned { background: linear-gradient(135deg, #E040FB, #7C4DFF); }
+  .icon-hidden.earned   { background: linear-gradient(135deg, #333, #555); }
+
+  /* ===== 未获得 ===== */
+  .badge-locked { background: #f9f8f6; border-color: #e5e3e0; opacity: 0.75; }
+  .badge-locked .icon-locked { background: #e8e6e3; color: #b0ada8; }
+
+  /* ===== 进度环 ===== */
+  .progress-ring { transform: rotate(-90deg); }
+  .progress-ring circle { transition: stroke-dashoffset 0.6s ease; }
+
+  /* ===== 分类左边框 ===== */
+  .cat-volume   { border-left: 3px solid #CD7F32; }
+  .cat-quality  { border-left: 3px solid #3B82F6; }
+  .cat-streak   { border-left: 3px solid #EF4444; }
+  .cat-module   { border-left: 3px solid #10B981; }
+  .cat-combo    { border-left: 3px solid #8B5CF6; }
+
+  /* ===== 弹窗动画 ===== */
+  .modal-enter { animation: modalIn 0.25s ease-out; }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ===== 顶部统计栏 ===== -->
+<div class="bg-gradient-to-r from-stone-800 via-stone-700 to-stone-800 text-white">
+  <div class="max-w-5xl mx-auto px-6 py-8">
+    <h1 class="text-2xl font-bold mb-6">🏆 成就徽章</h1>
+    <div class="grid grid-cols-3 gap-4">
+      <div class="bg-white/10 backdrop-blur rounded-xl p-4 text-center border border-white/10">
+        <p class="text-3xl font-extrabold text-amber-400">5</p>
+        <p class="text-xs text-white/60 mt-1">已获得</p>
+      </div>
+      <div class="bg-white/10 backdrop-blur rounded-xl p-4 text-center border border-white/10">
+        <p class="text-3xl font-extrabold text-white">38</p>
+        <p class="text-xs text-white/60 mt-1">总徽章</p>
+      </div>
+      <div class="bg-white/10 backdrop-blur rounded-xl p-4 text-center border border-white/10">
+        <p class="text-3xl font-extrabold text-purple-300">11</p>
+        <p class="text-xs text-white/60 mt-1">接近达成 (≥70%)</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 分类区 ===== -->
+<div class="max-w-5xl mx-auto px-6 py-8 space-y-10" id="sections"></div>
+
+<!-- ===== 弹窗 ===== -->
+<div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center px-4" onclick="closeModal(event)">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full modal-enter" id="modalContent"></div>
+</div>
+
+<script>
+// ===== 徽章数据 =====
+const badgeData = [
+  // ---- 背诵量 (copper tier) ----
+  { key:'total_10', name:'初出茅庐', desc:'累计背诵 10 题', cat:'背诵量', tier:'copper', earned:true, earnedAt:'6月15日', catClass:'cat-volume' },
+  { key:'total_50', name:'小有所成', desc:'累计背诵 50 题', cat:'背诵量', tier:'copper', earned:true, earnedAt:'6月17日', catClass:'cat-volume' },
+  { key:'total_100', name:'百题斩', desc:'累计背诵 100 题', cat:'背诵量', tier:'silver', earned:true, earnedAt:'6月19日', catClass:'cat-volume' },
+  { key:'total_300', name:'题海勇士', desc:'累计背诵 300 题', cat:'背诵量', tier:'gold', earned:false, progress:67, current:201, target:300, catClass:'cat-volume' },
+  { key:'total_500', name:'题库终结者', desc:'累计背诵 500 题', cat:'背诵量', tier:'legendary', earned:false, progress:40, current:201, target:500, catClass:'cat-volume' },
+
+  // ---- 质量 (silver tier) ----
+  { key:'avg_7', name:'稳定发挥', desc:'历史平均分 ≥ 7', cat:'质量', tier:'silver', earned:true, earnedAt:'6月16日', catClass:'cat-quality' },
+  { key:'avg_8', name:'优秀学者', desc:'历史平均分 ≥ 8', cat:'质量', tier:'silver', earned:false, progress:85, current:68, target:80, catClass:'cat-quality' },
+  { key:'avg_9', name:'接近完美', desc:'历史平均分 ≥ 9', cat:'质量', tier:'gold', earned:false, progress:75, current:68, target:90, catClass:'cat-quality' },
+  { key:'perfect_1', name:'首战满分', desc:'首次获得 10 分', cat:'质量', tier:'silver', earned:false, progress:0, current:0, target:1, catClass:'cat-quality' },
+  { key:'perfect_10', name:'满分收割机', desc:'累计 10 次 10 分', cat:'质量', tier:'legendary', earned:false, progress:0, current:0, target:10, catClass:'cat-quality' },
+
+  // ---- 坚持 (gold tier) ----
+  { key:'streak_3', name:'三天打鱼', desc:'连续 3 天背诵', cat:'坚持', tier:'copper', earned:true, earnedAt:'6月16日', catClass:'cat-streak' },
+  { key:'streak_7', name:'周不懈怠', desc:'连续 7 天背诵', cat:'坚持', tier:'silver', earned:false, progress:57, current:4, target:7, catClass:'cat-streak' },
+  { key:'streak_30', name:'月度之星', desc:'连续 30 天背诵', cat:'坚持', tier:'legendary', earned:false, progress:13, current:4, target:30, catClass:'cat-streak' },
+
+  // ---- 模块 (green/silver tier) ----
+  { key:'jvm', name:'JVM 专家', desc:'JVM 模块背诵 ≥ 20 题', cat:'模块', tier:'silver', earned:true, earnedAt:'6月18日', catClass:'cat-module' },
+  { key:'juc', name:'并发大神', desc:'JUC 模块背诵 ≥ 20 题', cat:'模块', tier:'silver', earned:false, progress:60, current:12, target:20, catClass:'cat-module' },
+  { key:'mysql', name:'MySQL 达人', desc:'MySQL 模块背诵 ≥ 20 题', cat:'模块', tier:'silver', earned:false, progress:30, current:6, target:20, catClass:'cat-module' },
+  { key:'spring', name:'Spring 高手', desc:'Spring 模块背诵 ≥ 20 题', cat:'模块', tier:'silver', earned:false, progress:0, current:0, target:20, catClass:'cat-module' },
+
+  // ---- 组合 (legendary tier) ----
+  { key:'combo_java', name:'Java 全栈', desc:'集齐 Java 4 模块徽章', cat:'组合', tier:'legendary', earned:false, progress:50, current:2, target:4, catClass:'cat-combo' },
+  { key:'combo_all', name:'全模块制霸', desc:'集齐全部 19 个模块', cat:'组合', tier:'legendary', earned:false, progress:5, current:1, target:19, catClass:'cat-combo' },
+];
+
+// ===== 渲染 =====
+const sections = document.getElementById('sections');
+const grouped = {};
+badgeData.forEach(b => {
+  if (!grouped[b.cat]) grouped[b.cat] = [];
+  grouped[b.cat].push(b);
+});
+
+const catMeta = {
+  '背诵量': { icon:'📚', color:'#CD7F32', cls:'cat-volume' },
+  '质量':   { icon:'💎', color:'#3B82F6', cls:'cat-quality' },
+  '坚持':   { icon:'🔥', color:'#EF4444', cls:'cat-streak' },
+  '模块':   { icon:'🏅', color:'#10B981', cls:'cat-module' },
+  '组合':   { icon:'🧩', color:'#8B5CF6', cls:'cat-combo' },
+};
+
+for (const [cat, badges] of Object.entries(grouped)) {
+  const meta = catMeta[cat];
+  const earned = badges.filter(b=>b.earned).length;
+  const total = badges.length;
+
+  let html = `<div>`;
+  html += `<div class="flex items-center gap-3 mb-4">
+    <span class="text-xl">${meta.icon}</span>
+    <h2 class="text-lg font-bold text-stone-800">${cat}</h2>
+    <span class="text-xs px-2 py-0.5 rounded-full text-white font-medium" style="background:${meta.color}">${earned}/${total}</span>
+  </div>`;
+  html += `<div class="grid grid-cols-2 md:grid-cols-4 gap-3">`;
+
+  badges.forEach(b => {
+    const tierColors = { copper:'#CD7F32', silver:'#A0A0A0', gold:'#DAA520', legendary:'#B44CF0', hidden:'#555' };
+    const tc = tierColors[b.tier];
+
+    if (b.earned) {
+      html += `<div class="rounded-xl border-2 p-3 cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg tier-${b.tier} earned ${b.catClass}"
+                    onclick="showDetail('${b.key}')">
+        <div class="flex items-start gap-3">
+          <div class="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl text-white shadow-md icon-${b.tier} earned relative">
+            ${b.tier==='legendary'?'💎':b.tier==='gold'?'👑':'⭐'}
+            <span class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+              <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" stroke-width="4" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+            </span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <h3 class="font-semibold text-sm text-stone-800 truncate">${b.name}</h3>
+            <p class="text-xs text-stone-500 line-clamp-1 mt-0.5">${b.desc}</p>
+            <p class="text-xs mt-2 font-medium" style="color:${tc}">🎉 ${b.earnedAt}</p>
+          </div>
+        </div>
+      </div>`;
+    } else if (b.progress > 0) {
+      const r=18, circ=2*Math.PI*r, offset=circ*(1-b.progress/100);
+      html += `<div class="rounded-xl border border-stone-200 bg-white/60 p-3 cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${b.catClass}"
+                    onclick="showDetail('${b.key}')">
+        <div class="flex items-start gap-3">
+          <div class="shrink-0 relative w-12 h-12 flex items-center justify-center">
+            <svg class="progress-ring w-12 h-12 absolute" viewBox="0 0 44 44"><circle cx="22" cy="22" r="${r}" fill="none" stroke="#e5e3e0" stroke-width="3"/><circle cx="22" cy="22" r="${r}" fill="none" stroke="${tc}" stroke-width="3" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" stroke-linecap="round" class="progress-ring"/></svg>
+            <span class="text-xs font-bold text-stone-600 relative z-10">${b.progress}%</span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <h3 class="font-semibold text-sm text-stone-600 truncate">${b.name}</h3>
+            <p class="text-xs text-stone-400 line-clamp-1 mt-0.5">${b.desc}</p>
+            <p class="text-xs mt-2 text-stone-400">${b.current}/${b.target}</p>
+          </div>
+        </div>
+      </div>`;
+    } else {
+      html += `<div class="rounded-xl border border-stone-200 bg-stone-50/50 p-3 cursor-default opacity-60 ${b.catClass}">
+        <div class="flex items-start gap-3">
+          <div class="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-lg icon-locked">
+            🔒
+          </div>
+          <div class="min-w-0 flex-1">
+            <h3 class="font-semibold text-sm text-stone-400 truncate">${b.name}</h3>
+            <p class="text-xs text-stone-350 line-clamp-1 mt-0.5 text-stone-400">${b.desc}</p>
+            <p class="text-xs mt-2 text-stone-350 text-stone-400">暂未解锁</p>
+          </div>
+        </div>
+      </div>`;
+    }
+  });
+
+  html += `</div></div>`;
+  sections.innerHTML += html;
+}
+
+// ===== 弹窗 =====
+function showDetail(key) {
+  const b = badgeData.find(x=>x.key===key);
+  if(!b) return;
+  const tc = { copper:'#CD7F32', silver:'#A0A0A0', gold:'#DAA520', legendary:'#B44CF0', hidden:'#555' }[b.tier];
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modalContent');
+
+  content.innerHTML = `
+    <button class="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-stone-100 text-stone-400" onclick="closeModal()">✕</button>
+    <div class="text-center">
+      <div class="w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center text-4xl text-white shadow-lg ${b.earned ? 'icon-'+b.tier : 'icon-locked'}"
+           style="${b.earned ? '' : 'background:#e8e6e3;'}">
+        ${b.earned ? (b.tier==='legendary'?'💎':b.tier==='gold'?'👑':'⭐') : '🔒'}
+        ${b.earned ? `<span class="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center"><svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" stroke-width="4" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span>` : ''}
+      </div>
+      <h2 class="text-xl font-bold text-stone-800 mb-1">${b.name}</h2>
+      <p class="text-sm text-stone-500 mb-3">${b.desc}</p>
+      ${b.earned
+        ? `<p class="text-sm font-medium" style="color:${tc}">🎉 已获得 · ${b.earnedAt}</p>`
+        : b.progress > 0
+          ? `<div class="mt-3"><div class="flex justify-between text-xs text-stone-400 mb-1"><span>进度</span><span>${b.current}/${b.target}</span></div><div class="h-2 bg-stone-200 rounded-full overflow-hidden"><div class="h-full rounded-full transition-all" style="width:${b.progress}%;background:${tc}"></div></div></div>`
+          : `<p class="text-sm text-stone-400">暂未解锁</p>`
+      }
+      <p class="text-xs text-stone-350 mt-3 px-2 py-1 rounded-full inline-block" style="background:${tc}15;color:${tc}">${b.tier==='legendary'?'💎 传说':b.tier==='gold'?'🥇 史诗':b.tier==='silver'?'🥈 稀有':'🥉 普通'}</p>
+    </div>`;
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+function closeModal(e) { if(!e || e.target===document.getElementById('modal')) { document.getElementById('modal').classList.add('hidden'); document.getElementById('modal').classList.remove('flex'); } }
+</script>
+</body>
+</html>

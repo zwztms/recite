@@ -43,6 +43,29 @@ public class AchievementConsumer implements RocketMQListener<AchievementRequestM
             "ai-design", "ai-openclaw", "ai-agent"
     );
 
+    /** 每个模块的总题数（来自 question_vectors，导入后稳定不变） */
+    private static final java.util.Map<String, Integer> MODULE_TOTAL_QUESTIONS = java.util.Map.ofEntries(
+            java.util.Map.entry("java-basics", 69),
+            java.util.Map.entry("juc", 61),
+            java.util.Map.entry("jvm", 32),
+            java.util.Map.entry("java-collections", 42),
+            java.util.Map.entry("spring", 58),
+            java.util.Map.entry("mysql", 89),
+            java.util.Map.entry("redis", 43),
+            java.util.Map.entry("os", 74),
+            java.util.Map.entry("ds-algo", 33),
+            java.util.Map.entry("network", 76),
+            java.util.Map.entry("ai-rag", 65),
+            java.util.Map.entry("ai-spring", 9),
+            java.util.Map.entry("ai-finetune", 21),
+            java.util.Map.entry("ai-prompt", 6),
+            java.util.Map.entry("ai-eval", 5),
+            java.util.Map.entry("ai-security", 3),
+            java.util.Map.entry("ai-design", 6),
+            java.util.Map.entry("ai-openclaw", 28),
+            java.util.Map.entry("ai-agent", 19)
+    );
+
     private final ReciteRecordPort reciteRecordPort;
     private final ProgressPort progressPort;
     private final StreakPort streakPort;
@@ -112,12 +135,19 @@ public class AchievementConsumer implements RocketMQListener<AchievementRequestM
         int currentStreak = streakOpt.map(UserStreakEntity::getCurrentStreak).orElse(0);
         int longestStreak = streakOpt.map(UserStreakEntity::getLongestStreak).orElse(0);
 
-        // 已获得徽章
+        // 已获得徽章（从 DB）
         List<String> earnedBadgeKeys = achievementPort.findEarnedBadgeKeys(userId);
         Set<String> earnedSet = new HashSet<>(earnedBadgeKeys);
-        Set<String> earnedModules = earnedSet.stream()
-                .filter(ALL_MODULE_KEYS::contains)
-                .collect(Collectors.toSet());
+
+        // 达标模块：每模块背诵题数 ≥ 该模块总题数
+        Set<String> earnedModules = new HashSet<>();
+        for (String moduleKey : ALL_MODULE_KEYS) {
+            int recited = reciteRecordPort.countByModule(userId, moduleKey);
+            int total = MODULE_TOTAL_QUESTIONS.getOrDefault(moduleKey, Integer.MAX_VALUE);
+            if (recited >= total) {
+                earnedModules.add(moduleKey);
+            }
+        }
 
         // 本次会话记录
         List<ReciteRecordEntity> sessionRecords = reciteRecordPort.findBySessionId(userId, sessionId);

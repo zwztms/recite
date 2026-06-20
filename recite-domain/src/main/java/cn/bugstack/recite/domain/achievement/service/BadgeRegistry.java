@@ -4,196 +4,88 @@ import cn.bugstack.recite.domain.achievement.model.valueobj.BadgeDefinition;
 import cn.bugstack.recite.domain.achievement.model.valueobj.UserStatsVO;
 
 import java.util.List;
-import java.util.Set;
 
 /**
- * 徽章注册表 — 全部 46 枚徽章硬编码定义.
+ * 徽章注册表 — 19 枚模块徽章，每模块一枚.
  *
- * <p>分类：背诵量(5) + 质量(5) + 坚持(5) + 模块(19) + 组合(4) + 隐藏(8).</p>
+ * <p>解锁条件：该模块全部题目背诵完成（ recite_count ≥ total_questions ）.
+ * 视觉效果：方案A金属渐变 — 金(核心5) / 暗金(Java生态7) / 铜(AI子域4) / 紫金(AI综合3).
  */
 public final class BadgeRegistry {
 
     private BadgeRegistry() {}
 
-    // ---- 模块列表 ----
-
-    private static final Set<String> JAVA_MODULES = Set.of("java-basics", "juc", "jvm", "java-collections");
-    private static final Set<String> AI_MODULES = Set.of("ai-rag", "ai-spring", "ai-finetune", "ai-prompt",
-            "ai-eval", "ai-security", "ai-design", "ai-openclaw", "ai-agent");
-    private static final Set<String> CS_MODULES = Set.of("os", "ds-algo", "network");
-    private static final List<String> ALL_19_MODULES = List.of(
-            "java-basics", "juc", "jvm", "java-collections", "spring", "mysql", "redis",
-            "os", "ds-algo", "network",
-            "ai-rag", "ai-spring", "ai-finetune", "ai-prompt", "ai-eval", "ai-security",
-            "ai-design", "ai-openclaw", "ai-agent"
-    );
-
     // ================================================================
-    // 全部 46 枚
+    // 全部 19 枚 — 按原型四档分类
     // ================================================================
 
     public static final List<BadgeDefinition> ALL_BADGES = List.of(
 
-            // ========== 背诵量（5） ==========
-            new BadgeDefinition("total_10", "初出茅庐", "累计背诵 10 题", "total_10",
-                    "背诵量", false, s -> s.getTotalRecites() >= 10),
-            new BadgeDefinition("total_50", "小有所成", "累计背诵 50 题", "total_50",
-                    "背诵量", false, s -> s.getTotalRecites() >= 50),
-            new BadgeDefinition("total_100", "百题斩", "累计背诵 100 题", "total_100",
-                    "背诵量", false, s -> s.getTotalRecites() >= 100),
-            new BadgeDefinition("total_300", "题海勇士", "累计背诵 300 题", "total_300",
-                    "背诵量", false, s -> s.getTotalRecites() >= 300),
-            new BadgeDefinition("total_500", "题库终结者", "累计背诵 500 题", "total_500",
-                    "背诵量", false, s -> s.getTotalRecites() >= 500),
+            // ========== 金色 · 核心 5 模块 ==========
+            badge("jvm", "JVM 虚拟机", "完成 JVM 模块全部 32 题背诵", "JVM",
+                    s -> earned(s, "jvm")),
+            badge("juc", "JUC 并发", "完成 JUC 模块全部 61 题背诵", "JUC",
+                    s -> earned(s, "juc")),
+            badge("mysql", "MySQL", "完成 MySQL 模块全部 89 题背诵", "SQL",
+                    s -> earned(s, "mysql")),
+            badge("redis", "Redis", "完成 Redis 模块全部 43 题背诵", "RED",
+                    s -> earned(s, "redis")),
+            badge("spring", "Spring", "完成 Spring 模块全部 58 题背诵", "SPR",
+                    s -> earned(s, "spring")),
 
-            // ========== 质量（5） ==========
-            new BadgeDefinition("avg_7", "稳定发挥", "历史平均分 ≥ 7", "avg_7",
-                    "质量", false, s -> s.getAverageScore() >= 7.0),
-            new BadgeDefinition("avg_8", "优秀学者", "历史平均分 ≥ 8", "avg_8",
-                    "质量", false, s -> s.getAverageScore() >= 8.0),
-            new BadgeDefinition("avg_9", "接近完美", "历史平均分 ≥ 9", "avg_9",
-                    "质量", false, s -> s.getAverageScore() >= 9.0),
-            new BadgeDefinition("perfect_1", "首战满分", "首次获得 10 分", "perfect_1",
-                    "质量", false, s -> s.getPerfectScoreCount() >= 1),
-            new BadgeDefinition("perfect_10", "满分收割机", "累计 10 次 10 分", "perfect_10",
-                    "质量", false, s -> s.getPerfectScoreCount() >= 10),
+            // ========== 暗金色 · Java 生态 7 模块 ==========
+            badge("java-basics", "Java 基础", "完成 Java 基础模块全部 69 题背诵", "JDK",
+                    s -> earned(s, "java-basics")),
+            badge("java-collections", "集合框架", "完成集合框架模块全部 42 题背诵", "COL",
+                    s -> earned(s, "java-collections")),
+            badge("os", "操作系统", "完成操作系统模块全部 74 题背诵", "OS",
+                    s -> earned(s, "os")),
+            badge("ds-algo", "数据结构与算法", "完成数据结构与算法模块全部 33 题背诵", "ALG",
+                    s -> earned(s, "ds-algo")),
+            badge("network", "计算机网络", "完成计算机网络模块全部 76 题背诵", "NET",
+                    s -> earned(s, "network")),
+            badge("ai-finetune", "AI 微调", "完成 AI 微调模块全部 21 题背诵", "FT",
+                    s -> earned(s, "ai-finetune")),
+            badge("ai-openclaw", "OpenClaw", "完成 OpenClaw 模块全部 28 题背诵", "OC",
+                    s -> earned(s, "ai-openclaw")),
 
-            // ========== 坚持（5） ==========
-            new BadgeDefinition("streak_3", "三天打鱼", "连续 3 天背诵", "streak_3",
-                    "坚持", false, s -> s.getCurrentStreak() >= 3),
-            new BadgeDefinition("streak_7", "周不懈怠", "连续 7 天背诵", "streak_7",
-                    "坚持", false, s -> s.getCurrentStreak() >= 7),
-            new BadgeDefinition("streak_14", "半月坚持", "连续 14 天背诵", "streak_14",
-                    "坚持", false, s -> s.getCurrentStreak() >= 14),
-            new BadgeDefinition("streak_30", "月度之星", "连续 30 天背诵", "streak_30",
-                    "坚持", false, s -> s.getCurrentStreak() >= 30),
-            new BadgeDefinition("streak_60", "持之以恒", "连续 60 天背诵", "streak_60",
-                    "坚持", false, s -> s.getCurrentStreak() >= 60),
+            // ========== 铜色 · AI 子域 4 模块 ==========
+            badge("ai-rag", "AI-RAG", "完成 AI-RAG 模块全部 65 题背诵", "RAG",
+                    s -> earned(s, "ai-rag")),
+            badge("ai-prompt", "AI Prompt", "完成 AI Prompt 模块全部 6 题背诵", "PRM",
+                    s -> earned(s, "ai-prompt")),
+            badge("ai-eval", "AI 评估", "完成 AI 评估模块全部 5 题背诵", "EVL",
+                    s -> earned(s, "ai-eval")),
+            badge("ai-security", "AI 安全", "完成 AI 安全模块全部 3 题背诵", "SEC",
+                    s -> earned(s, "ai-security")),
 
-            // ========== 模块单枚（19） ==========
-            new BadgeDefinition("java-basics", "Java 基础达人", "Java 基础模块背诵 ≥ 20 题",
-                    "module_java", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("java-basics")),
-            new BadgeDefinition("juc", "并发大神", "JUC 模块背诵 ≥ 20 题",
-                    "module_juc", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("juc")),
-            new BadgeDefinition("jvm", "JVM 专家", "JVM 模块背诵 ≥ 20 题",
-                    "module_jvm", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("jvm")),
-            new BadgeDefinition("java-collections", "集合大师", "Java 集合模块背诵 ≥ 20 题",
-                    "module_collections", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("java-collections")),
-            new BadgeDefinition("spring", "Spring 高手", "Spring 模块背诵 ≥ 20 题",
-                    "module_spring", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("spring")),
-            new BadgeDefinition("mysql", "MySQL 达人", "MySQL 模块背诵 ≥ 20 题",
-                    "module_mysql", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("mysql")),
-            new BadgeDefinition("redis", "Redis 达人", "Redis 模块背诵 ≥ 20 题",
-                    "module_redis", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("redis")),
-            new BadgeDefinition("os", "操作系统通", "操作系统模块背诵 ≥ 20 题",
-                    "module_os", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("os")),
-            new BadgeDefinition("ds-algo", "算法高手", "数据结构与算法模块背诵 ≥ 20 题",
-                    "module_ds", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("ds-algo")),
-            new BadgeDefinition("network", "网络专家", "计算机网络模块背诵 ≥ 20 题",
-                    "module_network", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("network")),
-            new BadgeDefinition("ai-rag", "RAG 先锋", "AI-RAG 模块背诵 ≥ 20 题",
-                    "module_ai_rag", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("ai-rag")),
-            new BadgeDefinition("ai-spring", "AI Spring 达人", "AI Spring 模块背诵 ≥ 20 题",
-                    "module_ai_spring", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("ai-spring")),
-            new BadgeDefinition("ai-finetune", "微调大师", "AI 微调模块背诵 ≥ 20 题",
-                    "module_ai_finetune", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("ai-finetune")),
-            new BadgeDefinition("ai-prompt", "Prompt 专家", "AI Prompt 模块背诵 ≥ 20 题",
-                    "module_ai_prompt", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("ai-prompt")),
-            new BadgeDefinition("ai-eval", "评估达人", "AI 评估模块背诵 ≥ 20 题",
-                    "module_ai_eval", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("ai-eval")),
-            new BadgeDefinition("ai-security", "安全卫士", "AI 安全模块背诵 ≥ 20 题",
-                    "module_ai_security", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("ai-security")),
-            new BadgeDefinition("ai-design", "架构设计师", "AI 设计模块背诵 ≥ 20 题",
-                    "module_ai_design", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("ai-design")),
-            new BadgeDefinition("ai-openclaw", "OpenClaw 专家", "AI OpenClaw 模块背诵 ≥ 20 题",
-                    "module_ai_openclaw", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("ai-openclaw")),
-            new BadgeDefinition("ai-agent", "Agent 专家", "AI Agent 模块背诵 ≥ 20 题",
-                    "module_ai_agent", "模块", false,
-                    s -> s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains("ai-agent")),
-
-            // ========== 组合（4） ==========
-            new BadgeDefinition("combo_all_java", "Java 全栈", "集齐 java-basics + juc + jvm + java-collections",
-                    "combo_java", "组合", false,
-                    s -> s.getEarnedModuleBadges() != null
-                            && s.getEarnedModuleBadges().containsAll(JAVA_MODULES)),
-            new BadgeDefinition("combo_all_ai", "AI 专家", "集齐全部 9 个 AI 模块",
-                    "combo_ai", "组合", false,
-                    s -> s.getEarnedModuleBadges() != null
-                            && s.getEarnedModuleBadges().containsAll(AI_MODULES)),
-            new BadgeDefinition("combo_all_cs", "计算机基础", "集齐 os + ds-algo + network",
-                    "combo_cs", "组合", false,
-                    s -> s.getEarnedModuleBadges() != null
-                            && s.getEarnedModuleBadges().containsAll(CS_MODULES)),
-            new BadgeDefinition("combo_all_modules", "全模块制霸", "集齐全部 19 个模块",
-                    "combo_all", "组合", false,
-                    s -> s.getEarnedModuleBadges() != null
-                            && s.getEarnedModuleBadges().containsAll(ALL_19_MODULES)),
-
-            // ========== 趣味隐藏（8） ==========
-            new BadgeDefinition("hidden_night_owl", "夜猫子", "在凌晨 0-5 点完成一次背诵",
-                    "hidden_night", "隐藏", true,
-                    s -> s.getLastSessionHour() >= 0 && s.getLastSessionHour() < 5),
-            new BadgeDefinition("hidden_speed", "快枪手", "单题答题 ≤ 30 秒",
-                    "hidden_speed", "隐藏", true,
-                    s -> s.getLastSessionAnswerSeconds() > 0 && s.getLastSessionAnswerSeconds() <= 30),
-            new BadgeDefinition("hidden_three_stars", "三星上将", "单次会话 3 题全满分",
-                    "hidden_three", "隐藏", true,
-                    s -> s.getLastSessionPerfectCount() >= 3
-                            && s.getLastSessionPerfectCount() == s.getLastSessionQuestionCount()
-                            && s.getLastSessionQuestionCount() >= 3),
-            new BadgeDefinition("hidden_comeback", "卷土重来", "断签 7 天后再次连续 3 天",
-                    "hidden_comeback", "隐藏", true,
-                    s -> s.isWasStreakBroken() && s.getCurrentStreak() >= 3),
-            new BadgeDefinition("hidden_first_blood", "第一滴血", "第一次完成任何背诵",
-                    "hidden_first", "隐藏", true,
-                    s -> s.getTotalSessions() >= 1),
-            new BadgeDefinition("hidden_marathon", "马拉松", "单次会话 ≥ 20 题",
-                    "hidden_marathon", "隐藏", true,
-                    s -> s.getLastSessionQuestionCount() >= 20),
-            new BadgeDefinition("hidden_sniper", "狙击手", "追问链达到 3 层",
-                    "hidden_sniper", "隐藏", true,
-                    s -> s.getLastSessionMaxFollowUpDepth() >= 3),
-            new BadgeDefinition("hidden_collector", "收藏家", "获得 30 枚徽章",
-                    "hidden_collector", "隐藏", true,
-                    s -> s.getEarnedBadgeKeys() != null && s.getEarnedBadgeKeys().size() >= 30)
+            // ========== 紫金 · AI 综合 3 模块 ==========
+            badge("ai-spring", "AI Spring", "完成 AI Spring 模块全部 9 题背诵", "AIS",
+                    s -> earned(s, "ai-spring")),
+            badge("ai-agent", "AI Agent", "完成 AI Agent 模块全部 19 题背诵", "AGT",
+                    s -> earned(s, "ai-agent")),
+            badge("ai-design", "AI 设计", "完成 AI 设计模块全部 6 题背诵", "DSG",
+                    s -> earned(s, "ai-design"))
     );
 
-    // ---- 查询方法 ----
+    // ---- 辅助 ----
+
+    private static BadgeDefinition badge(String key, String name, String desc, String icon,
+                                          java.util.function.Function<UserStatsVO, Boolean> cond) {
+        return new BadgeDefinition(key, name, desc, icon, "模块", false, cond);
+    }
+
+    private static boolean earned(UserStatsVO s, String key) {
+        return s.getEarnedModuleBadges() != null && s.getEarnedModuleBadges().contains(key);
+    }
+
+    // ---- 查询 ----
 
     public static BadgeDefinition getByKey(String key) {
-        return ALL_BADGES.stream()
-                .filter(b -> b.getKey().equals(key))
-                .findFirst().orElse(null);
+        return ALL_BADGES.stream().filter(b -> b.getKey().equals(key)).findFirst().orElse(null);
     }
 
-    public static List<BadgeDefinition> getByCategory(String category) {
-        return ALL_BADGES.stream()
-                .filter(b -> b.getCategory().equals(category))
-                .toList();
-    }
-
-    /** 公开徽章（排除隐藏） */
     public static List<BadgeDefinition> getPublicBadges() {
-        return ALL_BADGES.stream()
-                .filter(b -> !b.isHidden())
-                .toList();
+        return ALL_BADGES; // 全部公开
     }
 }
