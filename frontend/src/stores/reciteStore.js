@@ -78,7 +78,7 @@ export const useReciteStore = defineStore('recite', () => {
   // ================================================================
 
   async function sendAnswer(text) {
-    if (!sessionId.value || streaming.value) return
+        if (!sessionId.value || streaming.value) return
 
     // 用户消息
     messages.value.push(msg('user', { text }))
@@ -106,9 +106,9 @@ export const useReciteStore = defineStore('recite', () => {
         if (done) break
         buffer += decoder.decode(value, { stream: true })
 
-        // 解析 SSE 事件（以 \n\n 分隔）
-        const parts = buffer.split('\n\n')
-        buffer = parts.pop()  // 最后一个可能不完整
+        // 解析 SSE 事件（\n\n 或 \r\n\r\n 分隔）
+        const parts = buffer.split(/\r?\n\r?\n/)
+        buffer = parts.pop()
 
         for (const part of parts) {
           const event = parseSseEvent(part)
@@ -289,10 +289,10 @@ function parseSseEvent(chunk) {
   let dataStr = ''
 
   for (const line of lines) {
-    if (line.startsWith('event: ')) {
-      name = line.slice(7).trim()
-    } else if (line.startsWith('data: ')) {
-      dataStr = line.slice(6).trim()
+    if (line.startsWith('event:')) {
+      name = line.slice(6).trim()   // 'event:score' → 'score'
+    } else if (line.startsWith('data:')) {
+      dataStr = line.slice(5).trim() // 'data:{...}' → '{...}'
     }
   }
 

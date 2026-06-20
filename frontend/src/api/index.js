@@ -71,10 +71,7 @@ export async function submitAnswerStream(sid, questionId, answer) {
   const token = localStorage.getItem('token')
   const res = await fetch(`/api/recite/${sid}/answer`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': token || ''
-    },
+    headers: { 'Content-Type': 'application/json', 'Authorization': token || '' },
     body: JSON.stringify({ questionId, answer })
   })
   if (!res.ok) {

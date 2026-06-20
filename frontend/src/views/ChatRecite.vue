@@ -84,7 +84,6 @@ async function onStart({ mode, moduleKeys, count }) {
 
 async function onSend(text) {
   if (store.mode === 'REVIEW') {
-    // 复习模式不走评分，直接文本交互
     store.messages.push({ id: Date.now(), type: 'user', data: { text }, ts: Date.now() })
     return
   }
