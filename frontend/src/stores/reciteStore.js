@@ -36,7 +36,8 @@ export const useReciteStore = defineStore('recite', () => {
   const streaming = ref(false)
   const currentIndex = ref(0)
   const totalQuestions = ref(0)
-  const currentRecordId = ref(null)  // 当前题的 recordId，追问用
+  const currentQuestionId = ref(null) // 当前题目的 ID，提交答案用
+  const currentRecordId = ref(null)   // 当前题的 recordId，追问用
 
   // ================================================================
   // 开始背诵
@@ -60,13 +61,13 @@ export const useReciteStore = defineStore('recite', () => {
 
     // AI 消息：第一题
     if (data.question) {
+      currentQuestionId.value = data.question.id
       messages.value.push(msg('ai', {
         text: data.question.question,
         moduleKey: data.question.moduleKey,
         difficulty: data.question.difficulty,
         questionIndex: 1,
         totalQuestions: data.totalQuestions,
-        // 复习模式额外展示答案
         answer: reciteMode === 'REVIEW' ? data.question.content : null
       }))
     }
@@ -96,7 +97,7 @@ export const useReciteStore = defineStore('recite', () => {
     streaming.value = true
 
     try {
-      const reader = await submitAnswerStream(sessionId.value, null, text)
+      const reader = await submitAnswerStream(sessionId.value, currentQuestionId.value, text)
       const decoder = new TextDecoder()
       let buffer = ''
 
@@ -189,6 +190,8 @@ export const useReciteStore = defineStore('recite', () => {
       const qData = qRes.data
 
       if (qData) {
+        currentQuestionId.value = qData.id
+
         // 系统消息
         messages.value.push(msg('system', {
           text: `第 ${session.currentIndex} / ${session.totalQuestions} 题`
@@ -256,6 +259,7 @@ export const useReciteStore = defineStore('recite', () => {
     streaming.value = false
     currentIndex.value = 0
     totalQuestions.value = 0
+    currentQuestionId.value = null
     currentRecordId.value = null
     nextId = 1
   }
@@ -271,7 +275,7 @@ export const useReciteStore = defineStore('recite', () => {
 
   return {
     stage, mode, sessionId, messages, streaming,
-    currentIndex, totalQuestions, currentRecordId,
+    currentIndex, totalQuestions, currentQuestionId, currentRecordId,
     startRecite, sendAnswer, nextQuestion, sendFollowUp, finishRecite,
     sendReview, resetState, fetchHistory
   }
