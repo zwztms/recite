@@ -28,7 +28,10 @@
           </label>
           <div class="max-h-48 overflow-y-auto space-y-1">
             <label v-for="m in modules" :key="m.moduleKey"
-              class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-warm cursor-pointer transition-colors">
+              class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors"
+              :class="selectedModuleKeys.includes(m.moduleKey)
+                ? 'bg-coral-light border border-coral-border text-coral font-medium'
+                : 'hover:bg-warm text-text-primary'">
               <input
                 :type="selectedMode === 'RANDOM' ? 'checkbox' : 'radio'"
                 :name="'module-' + (selectedMode === 'RANDOM' ? 'multi' : 'single')"
@@ -38,7 +41,7 @@
                 @change="onModuleChange(m.moduleKey, $event)"
                 class="accent-coral"
               />
-              <span class="text-sm text-text-primary">{{ m.moduleName }}</span>
+              <span class="text-sm">{{ m.moduleName }}</span>
               <span class="text-xs text-text-muted ml-auto">{{ m.questionCount }} 题</span>
             </label>
           </div>
