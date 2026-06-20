@@ -18,7 +18,7 @@ export const useAchievementStore = defineStore('achievement', () => {
   // 按类别分组
   const groupedBadges = computed(() => {
     const groups = {}
-    const order = ['背诵量', '质量', '坚持', '模块通关', '趣味 & 隐藏']
+    const order = ['背诵量', '质量', '坚持', '模块', '组合']
 
     for (const b of badges.value) {
       const cat = b.category || '其他'
