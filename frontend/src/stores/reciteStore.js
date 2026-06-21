@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, reactive } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import {
   startRecite as apiStartRecite,
   submitAnswerStream,
@@ -39,6 +39,15 @@ export const useReciteStore = defineStore('recite', () => {
   const currentQuestionId = ref(null) // 当前题目的 ID，提交答案用
   const currentRecordId = ref(null)   // 当前题的 recordId，追问用
 
+  // 自动保存消息到 sessionStorage（刷新恢复用）
+  function saveMessages() {
+    try {
+      const plain = messages.value.map(m => ({ id: m.id, type: m.type, data: { ...m.data }, ts: m.ts }))
+      sessionStorage.setItem('activeMessages', JSON.stringify(plain))
+    } catch (e) { /* ignore */ }
+  }
+  watch(messages, () => saveMessages(), { deep: true })
+
   // ================================================================
   // 开始背诵
   // ================================================================
@@ -52,6 +61,7 @@ export const useReciteStore = defineStore('recite', () => {
     const data = res.data
     sessionId.value = data.sessionId
     sessionStorage.setItem('activeSession', data.sessionId)
+    saveMessages()
     currentIndex.value = data.questionIndex
     totalQuestions.value = data.totalQuestions
 
@@ -275,6 +285,7 @@ export const useReciteStore = defineStore('recite', () => {
 
   function resetState() {
     sessionStorage.removeItem('activeSession')
+    sessionStorage.removeItem('activeMessages')
     stage.value = 'setup'
     mode.value = null
     sessionId.value = null
@@ -308,13 +319,22 @@ export const useReciteStore = defineStore('recite', () => {
       totalQuestions.value = session.totalQuestions
       stage.value = 'chatting'
 
-      // 加载当前题目
+      // 恢复历史消息
+      const saved = sessionStorage.getItem('activeMessages')
+      if (saved) {
+        try {
+          const arr = JSON.parse(saved)
+          messages.value = arr.map(m => reactive({ id: m.id, type: m.type, data: m.data, ts: m.ts }))
+        } catch (e) { /* ignore */ }
+      }
+
+      // 加载当前题目（如果 session 仍在当前页面）
       const qRes = await getCurrentQuestion(sid)
       const qData = qRes.data
       if (qData) {
         currentQuestionId.value = qData.id
         messages.value.push(msg('system', {
-          text: `会话恢复 · 第 ${session.currentIndex} / ${session.totalQuestions} 题`
+          text: `🔄 会话恢复 · 第 ${session.currentIndex} / ${session.totalQuestions} 题`
         }))
         messages.value.push(msg('ai', {
           text: qData.question,
