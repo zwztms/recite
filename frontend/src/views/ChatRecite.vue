@@ -10,6 +10,7 @@
         :mode="store.mode"
         :current="store.currentIndex"
         :total="store.totalQuestions"
+        :finished="store.stage === 'finished'"
         @finish="onFinish"
       />
 
@@ -46,14 +47,15 @@
 
         <!-- 报告插槽 -->
         <template #report="{ message }">
-          <ReportCard :data="message.data" />
+          <ReportCard :data="message.data" @goHome="onGoHome" />
         </template>
       </MessageList>
 
       <!-- 输入区 -->
       <ChatInput
+        v-if="store.stage !== 'finished'"
         ref="inputRef"
-        :disabled="store.streaming || store.stage === 'finished'"
+        :disabled="store.streaming"
         @send="onSend"
       />
     </template>
@@ -142,6 +144,10 @@ function onReviewRate(message, rating) {
 
 async function onFinish() {
   await store.finishRecite()
+}
+
+function onGoHome() {
+  store.resetState()
 }
 
 // helper

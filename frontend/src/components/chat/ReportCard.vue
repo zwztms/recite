@@ -44,8 +44,17 @@
     </div>
 
     <!-- AI 建议 -->
-    <div v-if="data.advice" class="p-3 bg-warm rounded-lg">
+    <div v-if="data.advice" class="p-3 bg-warm rounded-lg mb-4">
       <p class="text-sm text-text-secondary whitespace-pre-wrap">{{ data.advice }}</p>
+    </div>
+
+    <!-- 返回主页 -->
+    <div class="text-center">
+      <button @click="$emit('goHome')"
+        class="px-6 py-2 text-sm rounded-lg bg-coral text-white
+               hover:bg-orange-600 transition-colors font-medium">
+        返回主页
+      </button>
     </div>
   </div>
 </template>
@@ -54,4 +63,5 @@
 defineProps({
   data: { type: Object, required: true }
 })
+defineEmits(['goHome'])
 </script>
