@@ -134,7 +134,8 @@ export const useReciteStore = defineStore('recite', () => {
               card.data.recordId = event.data.recordId || null
               card.data.done = true
               currentRecordId.value = card.data.recordId
-              break
+              streaming.value = false
+              return  // 跳出 sendAnswer，不再阻塞 reader
             case 'error':
               card.data.suggestion = '评分出错，请稍后重试'
               card.data.done = true
