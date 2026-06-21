@@ -266,30 +266,30 @@ public class ReciteOrchestrationService {
         List<String> weaknesses = moduleScores.entrySet().stream()
                 .filter(e -> e.getValue() <= 4).map(java.util.Map.Entry::getKey).toList();
 
-        // 4. 发 MQ 异步生成报告（MQ 不可用不影响完成流程）
-        List<Long> recordIds = records.stream()
-                .map(ReciteRecordEntity::getId).toList();
-        try {
-            reportMessagePort.sendReportRequest(userId, sessionId, recordIds);
-        } catch (Exception e) {
-            log.warn("发送报告 MQ 消息失败（可能 RocketMQ 不可用）: {}", e.getMessage());
-        }
-
-        // 4b. 发 MQ 异步评估徽章（MQ 不可用不影响完成流程）
-        try {
-            achievementMessagePort.sendAchievementRequest(userId, sessionId);
-        } catch (Exception e) {
-            log.warn("发送成就 MQ 消息失败（可能 RocketMQ 不可用）: {}", e.getMessage());
-        }
-
-        // 5. 标记完成
+        // 4. 标记完成 + 更新连续天数（先于 MQ，不阻塞用户看到结果）
         session.setStatus("FINISHED");
         sessionPort.update(session);
-
-        // 6. 更新连续天数
         streakService.checkIn(userId);
 
         log.info("结束背诵: userId={}, sid={}, 均分={}", userId, sessionId, avg);
+
+        // 5. 发 MQ 异步生成报告（后台线程，超时不阻塞返回）
+        List<Long> recordIds = records.stream().map(ReciteRecordEntity::getId).toList();
+        new Thread(() -> {
+            try {
+                reportMessagePort.sendReportRequest(userId, sessionId, recordIds);
+            } catch (Exception e) {
+                log.warn("发送报告 MQ 消息失败: {}", e.getMessage());
+            }
+        }, "mq-report-" + sessionId).start();
+
+        new Thread(() -> {
+            try {
+                achievementMessagePort.sendAchievementRequest(userId, sessionId);
+            } catch (Exception e) {
+                log.warn("发送成就 MQ 消息失败: {}", e.getMessage());
+            }
+        }, "mq-achievement-" + sessionId).start();
 
         return new SessionReportVO(total, avg, count, strengths, weaknesses, "报告生成中，请稍后查看");
     }
