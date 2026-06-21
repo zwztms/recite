@@ -91,7 +91,8 @@ export const useReciteStore = defineStore('recite', () => {
       suggestion: '',
       followUpQuestion: '',
       recordId: null,
-      done: false
+      done: false,
+      error: false
     })
     messages.value.push(card)
     streaming.value = true
@@ -137,18 +138,37 @@ export const useReciteStore = defineStore('recite', () => {
               streaming.value = false
               return  // 跳出 sendAnswer，不再阻塞 reader
             case 'error':
-              card.data.suggestion = '评分出错，请稍后重试'
-              card.data.done = true
-              break
+              card.data.suggestion = event.data.message || '评分出错，请稍后重试'
+              card.data.error = true
+              streaming.value = false
+              return  // 退出循环，不再阻塞 reader
           }
         }
       }
     } catch (e) {
       card.data.suggestion = '连接中断，请重试'
-      card.data.done = true
+      card.data.error = true
     } finally {
       streaming.value = false
     }
+  }
+
+  // ================================================================
+  // 重试
+  // ================================================================
+
+  /** 评分出错后重试：移除最后一对 Q&A 消息，重置输入 */
+  function retryAnswer() {
+    // pop 掉评分卡片 (scoreCard) + 用户消息 (user)
+    while (messages.value.length > 0) {
+      const last = messages.value[messages.value.length - 1]
+      if (last.type === 'scoreCard' || last.type === 'user') {
+        messages.value.pop()
+      } else {
+        break
+      }
+    }
+    streaming.value = false
   }
 
   // ================================================================
@@ -277,7 +297,7 @@ export const useReciteStore = defineStore('recite', () => {
   return {
     stage, mode, sessionId, messages, streaming,
     currentIndex, totalQuestions, currentQuestionId, currentRecordId,
-    startRecite, sendAnswer, nextQuestion, sendFollowUp, finishRecite,
+    startRecite, sendAnswer, retryAnswer, nextQuestion, sendFollowUp, finishRecite,
     sendReview, resetState, fetchHistory
   }
 })

@@ -25,6 +25,8 @@
             @acceptFollowUp="onAcceptFollowUp(message)"
             @skipFollowUp="onSkipFollowUp(message)"
             @nextQuestion="onNextQuestion"
+            @retry="onRetry"
+            @skipQuestion="onNextQuestion"
           />
         </template>
 
@@ -115,6 +117,13 @@ function onAcceptFollowUpFromPrompt(recordId) {
 
 function onSkipFollowUpFromPrompt(recordId) {
   // 已在 FollowUpPrompt 中标记 answered
+}
+
+// ---- 重试 ----
+
+function onRetry() {
+  store.retryAnswer()
+  nextTick(() => inputRef.value?.focus())
 }
 
 // ---- 下一题 ----

@@ -1,7 +1,7 @@
 <template>
   <div class="mb-5 bg-white border border-border rounded-xl p-5 shadow-sm max-w-full">
     <!-- 阶段 1: 评分中 -->
-    <div v-if="data.score == null && !data.done" class="flex items-center gap-3 text-text-muted">
+    <div v-if="data.score == null && !data.done && !data.error" class="flex items-center gap-3 text-text-muted">
       <span class="w-2 h-2 rounded-full bg-coral animate-pulse"></span>
       <span class="text-sm">评分中...</span>
     </div>
@@ -67,6 +67,23 @@
     <!-- 追问已完成 -->
     <div v-if="data.followUpQuestion && data.done" class="p-3 bg-gray-50 border border-border rounded-lg">
       <p class="text-sm text-text-muted">💬 追问已跳过：{{ data.followUpQuestion }}</p>
+    </div>
+
+    <!-- 阶段 7: 评分出错 → 重试/跳过 -->
+    <div v-if="data.error" class="p-3 bg-red-50 border border-red-200 rounded-lg mb-3">
+      <p class="text-sm text-red-700 mb-3">⚠️ {{ data.suggestion || '评分出错' }}</p>
+      <div class="flex gap-2">
+        <button @click="$emit('retry')"
+          class="flex-1 px-4 py-1.5 text-sm rounded-lg bg-coral text-white
+                 hover:bg-orange-600 transition-colors font-medium">
+          重试
+        </button>
+        <button @click="$emit('skipQuestion')"
+          class="flex-1 px-4 py-1.5 text-sm rounded-lg border border-border text-text-secondary
+                 hover:bg-gray-50 transition-colors">
+          跳过此题
+        </button>
+      </div>
     </div>
 
     <!-- 完成标记 + 下一题按钮 -->
