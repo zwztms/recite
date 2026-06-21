@@ -58,7 +58,7 @@ public class DeepSeekLlmAdapter implements LlmPort {
                 用户回答：%s
 
                 请严格返回以下JSON格式（不要markdown包裹）：
-                {"score":8,"correctPoints":["点1","点2"],"missedPoints":["遗漏点"],"suggestion":"改进建议","followUpQuestion":"追问（可空字符串）"}
+                {"score":8,"correctPoints":["点1","点2"],"missedPoints":["遗漏点"],"suggestion":"改进建议","followUpQuestion":"针对回答薄弱点提出一个追问，若回答已完美则填无追问"}
                 """.formatted(question.getQuestion(), question.getContent(), userAnswer);
 
         String raw = callApi(prompt);

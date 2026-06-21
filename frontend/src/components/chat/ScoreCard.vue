@@ -47,8 +47,8 @@
       <p class="text-sm text-warning-text">💡 {{ data.suggestion }}</p>
     </div>
 
-    <!-- 阶段 6: 追问 -->
-    <div v-if="data.followUpQuestion && !data.done" class="p-3 bg-warning-bg border border-amber-200 rounded-lg">
+    <!-- 阶段 6: 追问（done 到达后仍显示） -->
+    <div v-if="data.followUpQuestion" class="p-3 bg-warning-bg border border-amber-200 rounded-lg">
       <p class="text-sm text-warning-text mb-2">💬 追问：{{ data.followUpQuestion }}</p>
       <div class="flex gap-2">
         <button @click="$emit('acceptFollowUp')"
@@ -64,10 +64,6 @@
       </div>
     </div>
 
-    <!-- 追问已完成 -->
-    <div v-if="data.followUpQuestion && data.done" class="p-3 bg-gray-50 border border-border rounded-lg">
-      <p class="text-sm text-text-muted">💬 追问已跳过：{{ data.followUpQuestion }}</p>
-    </div>
 
     <!-- 阶段 7: 评分出错 → 重试/跳过 -->
     <div v-if="data.error" class="p-3 bg-red-50 border border-red-200 rounded-lg mb-3">
