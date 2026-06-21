@@ -63,7 +63,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted } from 'vue'
 import { useReciteStore } from '../stores/reciteStore'
 import ModeSelector from '../components/chat/ModeSelector.vue'
 import ReciteTopBar from '../components/chat/ReciteTopBar.vue'
@@ -76,6 +76,15 @@ import ReportCard from '../components/chat/ReportCard.vue'
 
 const store = useReciteStore()
 const inputRef = ref(null)
+
+// 刷新后恢复活跃会话
+onMounted(async () => {
+  const sid = sessionStorage.getItem('activeSession')
+  if (sid) {
+    await store.restoreSession(sid)
+    nextTick(() => inputRef.value?.focus())
+  }
+})
 
 // ---- 开始背诵 ----
 

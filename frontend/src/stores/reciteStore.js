@@ -51,6 +51,7 @@ export const useReciteStore = defineStore('recite', () => {
     const res = await apiStartRecite(reciteMode, moduleKeys, count)
     const data = res.data
     sessionId.value = data.sessionId
+    sessionStorage.setItem('activeSession', data.sessionId)
     currentIndex.value = data.questionIndex
     totalQuestions.value = data.totalQuestions
 
@@ -273,6 +274,7 @@ export const useReciteStore = defineStore('recite', () => {
   // ================================================================
 
   function resetState() {
+    sessionStorage.removeItem('activeSession')
     stage.value = 'setup'
     mode.value = null
     sessionId.value = null
@@ -283,6 +285,50 @@ export const useReciteStore = defineStore('recite', () => {
     currentQuestionId.value = null
     currentRecordId.value = null
     nextId = 1
+  }
+
+  // ================================================================
+  // 会话恢复
+  // ================================================================
+
+  /** 刷新页面后恢复活跃会话 */
+  async function restoreSession(sid) {
+    if (!sid) return false
+    try {
+      const res = await getSession(sid)
+      const session = res.data
+      if (session.status === 'FINISHED') {
+        sessionStorage.removeItem('activeSession')
+        return false
+      }
+
+      sessionId.value = sid
+      mode.value = session.mode
+      currentIndex.value = session.currentIndex
+      totalQuestions.value = session.totalQuestions
+      stage.value = 'chatting'
+
+      // 加载当前题目
+      const qRes = await getCurrentQuestion(sid)
+      const qData = qRes.data
+      if (qData) {
+        currentQuestionId.value = qData.id
+        messages.value.push(msg('system', {
+          text: `会话恢复 · 第 ${session.currentIndex} / ${session.totalQuestions} 题`
+        }))
+        messages.value.push(msg('ai', {
+          text: qData.question,
+          moduleKey: qData.moduleKey,
+          difficulty: qData.difficulty,
+          questionIndex: session.currentIndex,
+          totalQuestions: session.totalQuestions
+        }))
+      }
+      return true
+    } catch (e) {
+      sessionStorage.removeItem('activeSession')
+      return false
+    }
   }
 
   // ================================================================
@@ -298,7 +344,7 @@ export const useReciteStore = defineStore('recite', () => {
     stage, mode, sessionId, messages, streaming,
     currentIndex, totalQuestions, currentQuestionId, currentRecordId,
     startRecite, sendAnswer, retryAnswer, nextQuestion, sendFollowUp, finishRecite,
-    sendReview, resetState, fetchHistory
+    sendReview, resetState, restoreSession, fetchHistory
   }
 })
 
