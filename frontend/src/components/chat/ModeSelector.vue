@@ -6,7 +6,7 @@
       <!-- 模式选择 tabs -->
       <div class="flex mb-6 bg-warm rounded-lg p-1">
         <button v-for="tab in modeTabs" :key="tab.key"
-          @click="selectedMode = tab.key"
+          @click="switchMode(tab.key)"
           class="flex-1 py-2 text-sm rounded-md transition-colors"
           :class="selectedMode === tab.key
             ? 'bg-white text-coral font-medium shadow-sm'
@@ -33,8 +33,8 @@
                 ? 'bg-coral-light border border-coral-border text-coral font-medium'
                 : 'hover:bg-warm text-text-primary'">
               <input
+                :key="selectedMode + '-' + m.moduleKey"
                 :type="selectedMode === 'RANDOM' ? 'checkbox' : 'radio'"
-                :name="'module-' + (selectedMode === 'RANDOM' ? 'multi' : 'single')"
                 :value="m.moduleKey"
                 v-model="selectedModuleKeys"
                 @change="onModuleChange(m.moduleKey)"
@@ -107,6 +107,11 @@ onMounted(async () => {
     error.value = '获取模块列表失败'
   }
 })
+
+function switchMode(mode) {
+  selectedMode.value = mode
+  selectedModuleKeys.value = []
+}
 
 function onModuleChange(key) {
   // radio 模式：v-model 绑定到数组，需手动转为单元素数组
