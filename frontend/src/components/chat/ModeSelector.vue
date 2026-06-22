@@ -37,8 +37,7 @@
                 :name="'module-' + (selectedMode === 'RANDOM' ? 'multi' : 'single')"
                 :value="m.moduleKey"
                 v-model="selectedModuleKeys"
-                :checked="selectedModuleKeys.includes(m.moduleKey)"
-                @change="onModuleChange(m.moduleKey, $event)"
+                @change="onModuleChange(m.moduleKey)"
                 class="accent-coral"
               />
               <span class="text-sm">{{ m.moduleName }}</span>
@@ -109,13 +108,12 @@ onMounted(async () => {
   }
 })
 
-function onModuleChange(key, event) {
-  if (selectedMode.value === 'RANDOM') {
-    // checkbox: vue v-model handles array
-  } else {
-    // radio: set single value
+function onModuleChange(key) {
+  // radio 模式：v-model 绑定到数组，需手动转为单元素数组
+  if (selectedMode.value !== 'RANDOM') {
     selectedModuleKeys.value = [key]
   }
+  // checkbox 模式：v-model 自动管理数组增删
 }
 
 async function start() {
