@@ -80,7 +80,8 @@ public class ReciteOrchestrationService {
             case CATEGORY -> {
                 String key = (moduleKeys != null && !moduleKeys.isEmpty())
                         ? moduleKeys.get(0) : "";
-                vos = questionPort.searchByModule(key, count);
+                vos = questionPort.searchRandom(
+                        key.isEmpty() ? List.of() : List.of(key), count);
             }
             case RANDOM -> vos = questionPort.searchRandom(moduleKeys, count);
             case REVIEW -> {

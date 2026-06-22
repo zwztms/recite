@@ -72,14 +72,13 @@ public class PgVectorAdapter implements QuestionPort {
 
     @Override
     public List<EmbeddedQuestionVO> searchByModule(String moduleKey, int topK) {
-        // 拉取模块全部题目 → 打乱 → 取前 topK，保证每次拿到不同题目
+        // 按模块拉取题目，保持数据库原始顺序（翻卡学习"按顺序"依赖此行为）
         List<QuestionVectorDO> all;
         if (moduleKey == null || moduleKey.isEmpty()) {
             all = mapper.selectList(null);
         } else {
             all = mapper.findByModule(moduleKey, 10000);
         }
-        java.util.Collections.shuffle(all);
         return all.stream()
                 .limit(topK)
                 .map(d -> {

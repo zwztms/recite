@@ -18,9 +18,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // Sa-Token 鉴权：背诵接口需登录
+        // Sa-Token 鉴权：需登录的接口
         registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkLogin()))
-                .addPathPatterns("/recite/**");
+                .addPathPatterns("/recite/**", "/home/**", "/learn/**");
 
         // Sa-Token 鉴权：知识库管理需管理员
         registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkRole("ADMIN")))
