@@ -26,6 +26,9 @@ public interface QuestionPort {
     /** 按模块列出（管理后台用） */
     List<EmbeddedQuestionVO> searchByModule(String moduleKey, int topK);
 
+    /** 随机抽题 — 按模块范围随机取 topK 题 */
+    List<EmbeddedQuestionVO> searchRandom(List<String> moduleKeys, int topK);
+
     // ==== 题目管理 ====
 
     /** 新增/重建索引（调用方已填充 embedding） */

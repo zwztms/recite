@@ -53,6 +53,24 @@ public class PgVectorAdapter implements QuestionPort {
     }
 
     @Override
+    public List<EmbeddedQuestionVO> searchRandom(List<String> moduleKeys, int topK) {
+        List<QuestionVectorDO> all;
+        if (moduleKeys == null || moduleKeys.isEmpty()) {
+            all = mapper.selectList(null);
+        } else {
+            all = new java.util.ArrayList<>();
+            for (String key : moduleKeys) {
+                all.addAll(mapper.findByModule(key, 10000));
+            }
+        }
+        java.util.Collections.shuffle(all);
+        return all.stream()
+                .limit(topK)
+                .map(d -> new EmbeddedQuestionVO(toEntity(d), 1.0))
+                .toList();
+    }
+
+    @Override
     public List<EmbeddedQuestionVO> searchByModule(String moduleKey, int topK) {
         List<QuestionVectorDO> list;
         if (moduleKey == null) {

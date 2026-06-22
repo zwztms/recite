@@ -82,7 +82,7 @@ public class ReciteOrchestrationService {
                         ? moduleKeys.get(0) : "";
                 vos = questionPort.searchByModule(key, count);
             }
-            case RANDOM -> vos = questionPort.search("", moduleKeys, count);
+            case RANDOM -> vos = questionPort.searchRandom(moduleKeys, count);
             case REVIEW -> {
                 List<UserProgressEntity> dueItems = progressPort.findDueQuestions(userId, count);
                 if (dueItems.isEmpty()) {

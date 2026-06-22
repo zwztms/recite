@@ -274,34 +274,23 @@ class AchievementServiceTest {
     class RegistryValidation {
 
         @Test
-        @DisplayName("全部 46 枚定义")
-        void shouldHave46Badges() {
-            assertThat(BadgeRegistry.ALL_BADGES).hasSize(46);
+        @DisplayName("全部 19 枚模块徽章")
+        void shouldHave19Badges() {
+            assertThat(BadgeRegistry.ALL_BADGES).hasSize(19);
         }
 
         @Test
-        @DisplayName("按分类过滤")
-        void shouldFilterByCategory() {
-            assertThat(BadgeRegistry.getByCategory("质量")).hasSize(5);
-            assertThat(BadgeRegistry.getByCategory("坚持")).hasSize(5);
-            assertThat(BadgeRegistry.getByCategory("背诵量")).hasSize(5);
-            assertThat(BadgeRegistry.getByCategory("模块")).hasSize(19);
-            assertThat(BadgeRegistry.getByCategory("组合")).hasSize(4);
-            assertThat(BadgeRegistry.getByCategory("隐藏")).hasSize(8);
-        }
-
-        @Test
-        @DisplayName("隐藏徽章 8 枚")
-        void shouldHave8Hidden() {
+        @DisplayName("全部公开")
+        void allBadgesArePublic() {
             long hidden = BadgeRegistry.ALL_BADGES.stream()
                     .filter(BadgeDefinition::isHidden).count();
-            assertThat(hidden).isEqualTo(8);
+            assertThat(hidden).isZero();
         }
 
         @Test
-        @DisplayName("getPublicBadges 排除隐藏 = 38 枚")
-        void publicBadgesShouldExcludeHidden() {
-            assertThat(BadgeRegistry.getPublicBadges()).hasSize(38);
+        @DisplayName("getPublicBadges = 19 枚")
+        void publicBadgesShouldBe19() {
+            assertThat(BadgeRegistry.getPublicBadges()).hasSize(19);
         }
     }
 }
