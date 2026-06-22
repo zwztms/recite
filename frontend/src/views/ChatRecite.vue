@@ -36,7 +36,7 @@
           <FollowUpPrompt
             :message="message"
             @accept="onAcceptFollowUpFromPrompt"
-            @skip="onSkipFollowUpFromPrompt"
+            @skip="onSkipFollowUpFromPrompt(message)"
           />
         </template>
 
@@ -117,7 +117,7 @@ function onAcceptFollowUp(message) {
 
 function onSkipFollowUp(message) {
   message.data.done = true
-  message.data.followUpQuestion = message.data.followUpQuestion || '' // 保留问题文本
+  message.data.followUpQuestion = ''  // 隐藏追问区
 }
 
 function onAcceptFollowUpFromPrompt(recordId) {
@@ -126,8 +126,8 @@ function onAcceptFollowUpFromPrompt(recordId) {
   inputRef.value?.focus()
 }
 
-function onSkipFollowUpFromPrompt(recordId) {
-  // 已在 FollowUpPrompt 中标记 answered
+function onSkipFollowUpFromPrompt(message) {
+  message.data.answered = true
 }
 
 // ---- 重试 ----
