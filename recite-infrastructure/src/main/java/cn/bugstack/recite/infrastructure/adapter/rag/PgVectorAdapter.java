@@ -72,18 +72,20 @@ public class PgVectorAdapter implements QuestionPort {
 
     @Override
     public List<EmbeddedQuestionVO> searchByModule(String moduleKey, int topK) {
-        List<QuestionVectorDO> list;
-        if (moduleKey == null) {
-            list = mapper.selectList(null);
+        // 拉取模块全部题目 → 打乱 → 取前 topK，保证每次拿到不同题目
+        List<QuestionVectorDO> all;
+        if (moduleKey == null || moduleKey.isEmpty()) {
+            all = mapper.selectList(null);
         } else {
-            list = mapper.findByModule(moduleKey, topK);
+            all = mapper.findByModule(moduleKey, 10000);
         }
-        return list.stream()
+        java.util.Collections.shuffle(all);
+        return all.stream()
+                .limit(topK)
                 .map(d -> {
                     QuestionEntity q = toEntity(d);
                     return new EmbeddedQuestionVO(q, 1.0);
                 })
-                .limit(topK)
                 .toList();
     }
 
