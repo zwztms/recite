@@ -25,8 +25,13 @@ const routes = [
     component: () => import('../views/AdminMonitor.vue'),
     meta: { auth: true, role: 'ADMIN' }
   },
-  { path: '/', redirect: '/recite' },
-  { path: '/:pathMatch(.*)*', redirect: '/recite' }
+  {
+    path: '/home',
+    component: () => import('../views/HomePage.vue'),
+    meta: { auth: true }
+  },
+  { path: '/', redirect: '/home' },
+  { path: '/:pathMatch(.*)*', redirect: '/home' }
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })

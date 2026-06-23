@@ -197,4 +197,12 @@ export function cleanTraces(before = 30) {
   return api.delete('/admin/monitor/traces', { params: { before } })
 }
 
+// ================================================================
+// 个人主页
+// ================================================================
+
+export function getHomeDashboard() {
+  return api.get('/home/dashboard')
+}
+
 export default api

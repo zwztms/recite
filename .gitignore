@@ -11,3 +11,4 @@ dist/
 recite-app/docs/import/backup/
 recite-app/allure-results/
 **/allure-results/
+docs/
