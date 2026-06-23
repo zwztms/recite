@@ -205,4 +205,16 @@ export function getHomeDashboard() {
   return api.get('/home/dashboard')
 }
 
+// ================================================================
+// 翻卡学习
+// ================================================================
+
+export function getLearnQuestions(moduleKey, order, filter) {
+  return api.get('/learn/questions', { params: { moduleKey, order, filter } })
+}
+
+export function markMastery(questionId, mastered) {
+  return api.post('/learn/mark', { questionId, mastered })
+}
+
 export default api
