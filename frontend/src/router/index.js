@@ -30,6 +30,11 @@ const routes = [
     component: () => import('../views/HomePage.vue'),
     meta: { auth: true }
   },
+  {
+    path: '/learn',
+    component: () => import('../views/CardLearn.vue'),
+    meta: { auth: true }
+  },
   { path: '/', redirect: '/home' },
   { path: '/:pathMatch(.*)*', redirect: '/home' }
 ]

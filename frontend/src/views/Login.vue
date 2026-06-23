@@ -134,7 +134,7 @@ async function handleLogin() {
   loading.value = true
   try {
     await auth.login(form.account, form.password)
-    router.push('/recite')
+    router.push('/home')
   } catch (e) {
     error.value = e.message || '登录失败'
   } finally {
@@ -157,7 +157,7 @@ async function handleRegister() {
   loading.value = true
   try {
     await auth.register(phone, form.password, form.nickname.trim())
-    router.push('/recite')
+    router.push('/home')
   } catch (e) {
     error.value = e.message || '注册失败'
   } finally {
@@ -171,7 +171,7 @@ async function handleAdminLogin() {
   loading.value = true
   try {
     await auth.adminLogin(form.username, form.password)
-    router.push('/recite')
+    router.push('/home')
   } catch (e) {
     error.value = e.message || '登录失败'
   } finally {
