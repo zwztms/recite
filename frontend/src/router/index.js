@@ -15,25 +15,23 @@ const routes = [
     component: () => import('../views/AchievementWall.vue'),
     meta: { auth: true }
   },
+  // 管理后台 — 嵌套路由（AdminLayout 为壳）
   {
-    path: '/admin/modules',
-    component: () => import('../views/AdminModules.vue'),
-    meta: { auth: true, role: 'ADMIN' }
-  },
-  {
-    path: '/admin/monitor',
-    component: () => import('../views/AdminMonitor.vue'),
-    meta: { auth: true, role: 'ADMIN' }
-  },
-  {
-    path: '/admin/knowledge',
-    component: () => import('../views/KnowledgeAdmin.vue'),
-    meta: { auth: true, role: 'ADMIN' }
-  },
-  {
-    path: '/admin/rag-eval',
-    component: () => import('../views/RAGEvalDashboard.vue'),
-    meta: { auth: true, role: 'ADMIN' }
+    path: '/admin',
+    component: () => import('../views/admin/AdminLayout.vue'),
+    meta: { auth: true, role: 'ADMIN' },
+    children: [
+      { path: '', redirect: '/admin/dashboard' },
+      { path: 'dashboard', component: () => import('../views/admin/DashboardPage.vue') },
+      { path: 'users', component: () => import('../views/admin/UserListPage.vue') },
+      { path: 'traces', component: () => import('../views/admin/TraceListPage.vue') },
+      { path: 'traces/:traceId', component: () => import('../views/admin/TraceDetailPage.vue') },
+      { path: 'settings', component: () => import('../views/admin/SystemSettings.vue') },
+      { path: 'modules', component: () => import('../views/AdminModules.vue') },
+      { path: 'monitor', component: () => import('../views/AdminMonitor.vue') },
+      { path: 'knowledge', component: () => import('../views/KnowledgeAdmin.vue') },
+      { path: 'rag-eval', component: () => import('../views/RAGEvalDashboard.vue') }
+    ]
   },
   {
     path: '/home',
