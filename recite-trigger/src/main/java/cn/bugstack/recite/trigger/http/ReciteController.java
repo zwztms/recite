@@ -18,7 +18,10 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import cn.bugstack.recite.types.skill.SkillResultVO;
+
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -99,6 +102,19 @@ public class ReciteController implements IReciteService {
                 sendSse(emitter, "score", Map.of("score", vo.score()), 0);
                 sendSse(emitter, "correct", Map.of("points", vo.correctPoints()), 400);
                 sendSse(emitter, "missed", Map.of("points", vo.missedPoints()), 400);
+
+                // Phase 17: 推送 skill 结果
+                if (vo.skillResults() != null && !vo.skillResults().isEmpty()) {
+                    for (SkillResultVO sr : vo.skillResults()) {
+                        Map<String, Object> skillData = new LinkedHashMap<>();
+                        skillData.put("name", sr.name());
+                        skillData.put("label", sr.label());
+                        skillData.put("result", sr.structuredData());
+                        skillData.put("resultJson", sr.resultJson());
+                        sendSse(emitter, "skill", skillData, 300);
+                    }
+                }
+
                 sendSse(emitter, "suggestion", Map.of("text", vo.suggestion()), 400);
                 sendSse(emitter, "followUp", Map.of("question",
                         vo.followUpQuestion() != null ? vo.followUpQuestion() : ""), 400);

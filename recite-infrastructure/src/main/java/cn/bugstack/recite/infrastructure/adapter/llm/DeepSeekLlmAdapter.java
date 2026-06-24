@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -219,5 +220,116 @@ public class DeepSeekLlmAdapter implements LlmPort {
 
         String raw = callApi(prompt);
         return extractJson(raw);
+    }
+
+    // ==== Phase 17: Skill 工具调用评分 ====
+
+    @Override
+    public LlmPort.EnhancedScoreResult scoreWithSkills(QuestionEntity question,
+                                                        String userAnswer,
+                                                        List<Map<String, Object>> tools) {
+        String prompt = """
+                你是大厂校招面试官。根据题目和回答评分（1-10分）。
+                你可以使用提供的 tools 来获取更深入的分析视角。
+
+                题目：%s
+                参考答案：%s
+                用户回答：%s
+
+                请先给出评分 JSON（score/correctPoints/missedPoints/suggestion/followUpQuestion），
+                然后决定是否需要调用 tool。不需要则 tool_calls 留空。
+                """.formatted(question.getQuestion(), question.getContent(), userAnswer);
+
+        String raw = callApiWithTools(prompt, tools);
+        try {
+            JsonObject root = gson.fromJson(raw, JsonObject.class);
+            JsonObject choice = root.getAsJsonArray("choices").get(0).getAsJsonObject();
+
+            List<LlmPort.ToolCallRequest> toolCalls = List.of();
+            if (choice.has("tool_calls") && !choice.get("tool_calls").isJsonNull()) {
+                JsonArray tcArray = choice.getAsJsonArray("tool_calls");
+                List<LlmPort.ToolCallRequest> list = new ArrayList<>();
+                for (int i = 0; i < tcArray.size(); i++) {
+                    JsonObject tc = tcArray.get(i).getAsJsonObject();
+                    JsonObject fn = tc.getAsJsonObject("function");
+                    list.add(new LlmPort.ToolCallRequest(
+                            tc.get("id").getAsString(),
+                            fn.get("name").getAsString(),
+                            fn.has("arguments") ? fn.get("arguments").getAsString() : "{}"));
+                }
+                toolCalls = list;
+            }
+
+            String content = null;
+            if (choice.has("message")) {
+                JsonObject msg = choice.getAsJsonObject("message");
+                if (msg.has("content") && !msg.get("content").isJsonNull()) {
+                    content = msg.get("content").getAsString();
+                }
+            }
+
+            if (content != null && !content.isBlank()) {
+                return parseScoreWithToolCalls(extractJson(content), toolCalls, raw);
+            }
+            return new LlmPort.EnhancedScoreResult(5, List.of(), List.of(), "", "", toolCalls, raw);
+        } catch (Exception e) {
+            log.error("解析 LLM 评分(skills)失败: {}", raw, e);
+            return new LlmPort.EnhancedScoreResult(5, List.of(), List.of("解析异常"), "请重试", "", List.of(), raw);
+        }
+    }
+
+    private LlmPort.EnhancedScoreResult parseScoreWithToolCalls(
+            String json, List<LlmPort.ToolCallRequest> toolCalls, String rawResponse) {
+        try {
+            var map = gson.<Map<String, Object>>fromJson(json,
+                    new TypeToken<Map<String, Object>>() {}.getType());
+            int score = ((Number) map.getOrDefault("score", 5)).intValue();
+            @SuppressWarnings("unchecked")
+            List<String> correct = (List<String>) map.getOrDefault("correctPoints", List.of());
+            @SuppressWarnings("unchecked")
+            List<String> missed = (List<String>) map.getOrDefault("missedPoints", List.of());
+            String suggestion = (String) map.getOrDefault("suggestion", "");
+            String followUp = (String) map.getOrDefault("followUpQuestion", "");
+            return new LlmPort.EnhancedScoreResult(score, correct, missed, suggestion, followUp, toolCalls, rawResponse);
+        } catch (Exception e) {
+            log.error("解析评分 JSON 失败: {}", json, e);
+            return new LlmPort.EnhancedScoreResult(5, List.of(), List.of("解析异常"), "请重试", "", toolCalls, rawResponse);
+        }
+    }
+
+    private String callApiWithTools(String prompt, List<Map<String, Object>> tools) {
+        try {
+            JsonObject body = new JsonObject();
+            body.addProperty("model", "deepseek-chat");
+            JsonArray messages = new JsonArray();
+            JsonObject msg = new JsonObject();
+            msg.addProperty("role", "user");
+            msg.addProperty("content", prompt);
+            messages.add(msg);
+            body.add("messages", messages);
+
+            if (tools != null && !tools.isEmpty()) {
+                body.add("tools", gson.toJsonTree(tools).getAsJsonArray());
+                body.addProperty("tool_choice", "auto");
+            }
+
+            Request request = new Request.Builder().url(chatUrl)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .post(RequestBody.create(gson.toJson(body), MediaType.parse("application/json")))
+                    .build();
+
+            try (Response response = client.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    log.error("DeepSeek API error {}: {}", response.code(),
+                            response.body() != null ? response.body().string() : "");
+                    return "{}";
+                }
+                return response.body() != null ? response.body().string() : "{}";
+            }
+        } catch (IOException e) {
+            log.error("DeepSeek API(tools) 失败: {}", e.getMessage());
+            return "{}";
+        }
     }
 }

@@ -18,13 +18,18 @@ import cn.bugstack.recite.domain.recite.port.out.AchievementMessagePort;
 import cn.bugstack.recite.domain.recite.port.out.ReciteSessionPort;
 import cn.bugstack.recite.domain.recite.port.out.ReportMessagePort;
 import cn.bugstack.recite.domain.recite.port.out.ScoreSlotPort;
+import cn.bugstack.recite.domain.recite.port.out.SkillPort;
+import cn.bugstack.recite.domain.recite.port.out.SkillSlotPort;
 import cn.bugstack.recite.types.enums.ReciteMode;
+import cn.bugstack.recite.types.skill.SkillResultVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -46,6 +51,8 @@ public class ReciteOrchestrationService {
     private final StreakService streakService;
     private final ReportMessagePort reportMessagePort;
     private final AchievementMessagePort achievementMessagePort;
+    private final SkillPort skillPort;
+    private final SkillSlotPort skillSlotPort;
 
     public ReciteOrchestrationService(QuestionPort questionPort,
                                        ReciteSessionPort sessionPort,
@@ -57,7 +64,9 @@ public class ReciteOrchestrationService {
                                        ProgressPort progressPort,
                                        StreakService streakService,
                                        ReportMessagePort reportMessagePort,
-                                       AchievementMessagePort achievementMessagePort) {
+                                       AchievementMessagePort achievementMessagePort,
+                                       SkillPort skillPort,
+                                       SkillSlotPort skillSlotPort) {
         this.questionPort = questionPort;
         this.sessionPort = sessionPort;
         this.scoreSlotPort = scoreSlotPort;
@@ -69,6 +78,8 @@ public class ReciteOrchestrationService {
         this.streakService = streakService;
         this.reportMessagePort = reportMessagePort;
         this.achievementMessagePort = achievementMessagePort;
+        this.skillPort = skillPort;
+        this.skillSlotPort = skillSlotPort;
     }
 
     /** 开始背诵 — 拉题 + 创建会话 */
@@ -149,24 +160,66 @@ public class ReciteOrchestrationService {
                     "题目不存在");
         }
 
-        // 3. 评分（REVIEW 自评 vs 其他 LLM 评分）
+        // 3. 评分（REVIEW 自评 vs 其他 LLM 评分 + Skill 扩展）
         ScoreResultVO vo;
+        List<SkillResultVO> skillResults = List.of();
+        List<LlmPort.ToolCallRequest> pendingToolCalls = List.of();
+
         if (session.getMode() == cn.bugstack.recite.types.enums.ReciteMode.REVIEW) {
-            // REVIEW 模式：自评映射，不调 LLM，不抢槽位
             int score = mapSelfAssessment(answer);
             vo = new ScoreResultVO(score, List.of(), List.of(), "", "");
         } else {
-            boolean acquired = scoreSlotPort.tryAcquire(30_000);
-            if (!acquired) {
-                throw new cn.bugstack.recite.domain.recite.exception.ReciteException(
-                        cn.bugstack.recite.types.enums.ResponseCode.LLM_TIMEOUT.getCode(),
-                        "评分排队超时，请稍后重试");
-            }
-            try {
-                vo = llmPort.score(question, answer);
-                gateService.validateScore(vo.score());
-            } finally {
-                scoreSlotPort.release();
+            List<SkillPort.ToolDefinition> toolDefs = skillPort.listToolDefinitions();
+
+            if (toolDefs.isEmpty()) {
+                // 无 skill：走原有评分逻辑
+                boolean acquired = scoreSlotPort.tryAcquire(30_000);
+                if (!acquired) {
+                    throw new cn.bugstack.recite.domain.recite.exception.ReciteException(
+                            cn.bugstack.recite.types.enums.ResponseCode.LLM_TIMEOUT.getCode(),
+                            "评分排队超时，请稍后重试");
+                }
+                try {
+                    vo = llmPort.score(question, answer);
+                    gateService.validateScore(vo.score());
+                } finally {
+                    scoreSlotPort.release();
+                }
+            } else {
+                // 有 skill：构建 tools → scoreWithSkills
+                List<Map<String, Object>> tools = toolDefs.stream().map(t -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("type", "function");
+                    Map<String, Object> f = new HashMap<>();
+                    f.put("name", t.name());
+                    f.put("description", t.description());
+                    f.put("parameters", t.parameters());
+                    m.put("function", f);
+                    return m;
+                }).toList();
+
+                boolean acquired = scoreSlotPort.tryAcquire(30_000);
+                if (!acquired) {
+                    throw new cn.bugstack.recite.domain.recite.exception.ReciteException(
+                            cn.bugstack.recite.types.enums.ResponseCode.LLM_TIMEOUT.getCode(),
+                            "评分排队超时，请稍后重试");
+                }
+                try {
+                    LlmPort.EnhancedScoreResult enhanced = llmPort.scoreWithSkills(question, answer, tools);
+                    vo = new ScoreResultVO(enhanced.score(), enhanced.correctPoints(),
+                            enhanced.missedPoints(), enhanced.suggestion(), enhanced.followUpQuestion());
+                    gateService.validateScore(vo.score());
+                    pendingToolCalls = enhanced.toolCalls() != null ? enhanced.toolCalls() : List.of();
+                } finally {
+                    scoreSlotPort.release();
+                }
+
+                // 评分槽释放后，在独立 skill 槽中执行 tool calls
+                if (!pendingToolCalls.isEmpty()) {
+                    skillResults = executeSkills(pendingToolCalls, question, answer);
+                }
+                vo = new ScoreResultVO(vo.score(), vo.correctPoints(), vo.missedPoints(),
+                        vo.suggestion(), vo.followUpQuestion(), skillResults);
             }
         }
 
@@ -293,6 +346,35 @@ public class ReciteOrchestrationService {
         }, "mq-achievement-" + sessionId).start();
 
         return new SessionReportVO(total, avg, count, strengths, weaknesses, "报告生成中，请稍后查看");
+    }
+
+    /** 执行工具调用（评分槽外），最多 3 个 */
+    private List<SkillResultVO> executeSkills(
+            List<LlmPort.ToolCallRequest> toolCalls, QuestionEntity question, String answer) {
+        List<SkillResultVO> results = new ArrayList<>();
+        int limit = Math.min(toolCalls.size(), 3);
+        for (int i = 0; i < limit; i++) {
+            LlmPort.ToolCallRequest tc = toolCalls.get(i);
+            boolean acquired = skillSlotPort.tryAcquire(15_000);
+            if (!acquired) {
+                log.warn("Skill 槽获取超时: {}", tc.functionName());
+                results.add(SkillResultVO.error(tc.functionName(), tc.functionName(), "Skill 执行排队超时"));
+                continue;
+            }
+            try {
+                Map<String, Object> params = new HashMap<>();
+                params.put("question", question.getQuestion());
+                params.put("answer", answer);
+                params.put("referenceAnswer", question.getContent());
+                results.add(skillPort.execute(tc.functionName(), params));
+            } catch (Exception e) {
+                log.warn("Skill 执行异常 [{}]: {}", tc.functionName(), e.getMessage());
+                results.add(SkillResultVO.error(tc.functionName(), tc.functionName(), e.getMessage()));
+            } finally {
+                skillSlotPort.release();
+            }
+        }
+        return results;
     }
 
     /** REVIEW 自评映射：想起→9, 不确定→5, 忘了→2 */

@@ -6,6 +6,7 @@ import cn.bugstack.recite.domain.recite.model.valueobj.ScoreResultVO;
 import cn.bugstack.recite.domain.recite.model.valueobj.SessionReportVO;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * LLM 交互 SPI — DeepSeek 实现.
@@ -23,4 +24,21 @@ public interface LlmPort {
 
     /** 生成学习档案报告（含历史上下文），返回结构化 JSON 存入 learning_journal */
     String generateJournalReport(List<ReciteRecordEntity> records, List<String> recentJournalSummaries);
+
+    // ==== Phase 17: Skill 工具调用评分 ====
+
+    /** AI 评分 + 可选 skill 调用（支持 tools 参数） */
+    EnhancedScoreResult scoreWithSkills(QuestionEntity question, String userAnswer,
+                                        List<Map<String, Object>> tools);
+
+    record EnhancedScoreResult(
+            int score, List<String> correctPoints, List<String> missedPoints,
+            String suggestion, String followUpQuestion,
+            List<ToolCallRequest> toolCalls, String rawResponse) {
+        public boolean hasToolCalls() {
+            return toolCalls != null && !toolCalls.isEmpty();
+        }
+    }
+
+    record ToolCallRequest(String id, String functionName, String arguments) {}
 }
