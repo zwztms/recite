@@ -21,13 +21,13 @@ public class DashboardAdapter implements DashboardPort {
     @Override
     public Overview getOverview() {
         int totalUsers = jdbc.queryForObject(
-                "SELECT count(*) FROM users WHERE deleted = false", Integer.class);
+                "SELECT count(*) FROM users WHERE status != 'DELETED'", Integer.class);
 
         int totalSessions = jdbc.queryForObject(
                 "SELECT count(*) FROM recite_records", Integer.class);
 
         Double avgScore = jdbc.queryForObject(
-                "SELECT COALESCE(AVG(ai_score), 0) FROM (SELECT ai_score FROM recite_records ORDER BY created_at DESC LIMIT 100) t",
+                "SELECT COALESCE(AVG(score), 0) FROM (SELECT score FROM recite_records ORDER BY created_at DESC LIMIT 100) t",
                 Double.class);
         if (avgScore == null) avgScore = 0.0;
 
@@ -49,7 +49,7 @@ public class DashboardAdapter implements DashboardPort {
     public List<TrendPoint> getTrends(int days) {
         return jdbc.query(
                 "SELECT to_char(created_at, 'MM-DD') as date, count(*) as sessions, " +
-                        "COALESCE(AVG(ai_score), 0) as avg_score, COUNT(DISTINCT user_id) as active_users " +
+                        "COALESCE(AVG(score), 0) as avg_score, COUNT(DISTINCT user_id) as active_users " +
                         "FROM recite_records WHERE created_at > now() - (? || ' days')::interval " +
                         "GROUP BY to_char(created_at, 'MM-DD') ORDER BY date",
                 (rs, i) -> new TrendPoint(
