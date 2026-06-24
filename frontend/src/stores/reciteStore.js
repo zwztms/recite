@@ -18,6 +18,7 @@ import {
  *   ai        AI 纯文本消息   { text }
  *   user      用户回答 pill   { text }
  *   scoreCard SSE 评分卡片    { score, corrects[], missed[], suggestion, followUpQuestion, recordId, done }
+ *   skillCard Skill 分析卡片   { name, label, result, resultJson }
  *   followUp  追问交互        { recordId, question, answered }
  *   review    复习自评        { questionId, answer }
  *   report    报告           { totalScore, averageScore, totalQuestions, strengths, weaknesses, advice }
@@ -135,6 +136,14 @@ export const useReciteStore = defineStore('recite', () => {
               break
             case 'missed':
               card.data.missed = event.data.points || []
+              break
+            case 'skill':
+              messages.value.push(msg('skillCard', {
+                name: event.data.name || '',
+                label: event.data.label || '',
+                result: event.data.result || {},
+                resultJson: event.data.resultJson || '{}'
+              }))
               break
             case 'suggestion':
               card.data.suggestion = event.data.text || ''

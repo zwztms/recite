@@ -18,6 +18,9 @@
         <!-- SSE 评分卡片 — 由父组件插槽处理 -->
         <slot v-else-if="m.type === 'scoreCard'" name="scoreCard" :message="m" />
 
+        <!-- Skill 分析卡片 -->
+        <SkillCard v-else-if="m.type === 'skillCard'" :data="m.data" />
+
         <!-- 追问 — 由父组件插槽处理 -->
         <slot v-else-if="m.type === 'followUp'" name="followUp" :message="m" />
 
@@ -42,6 +45,7 @@
 import { ref, watch, nextTick } from 'vue'
 import AiMessage from './AiMessage.vue'
 import UserMessage from './UserMessage.vue'
+import SkillCard from './SkillCard.vue'
 
 const props = defineProps({
   messages: { type: Array, required: true },
