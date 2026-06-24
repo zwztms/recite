@@ -41,4 +41,7 @@ public interface LlmPort {
     }
 
     record ToolCallRequest(String id, String functionName, String arguments) {}
+
+    /** 记忆压缩 — 将旧窗口压缩为 ≤100 字薄弱点摘要 */
+    String compress(String prompt);
 }

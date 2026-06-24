@@ -177,6 +177,19 @@ public class DeepSeekLlmAdapter implements LlmPort {
         return s;
     }
 
+    // ==== Phase RAG: 记忆压缩 ====
+
+    @Override
+    public String compress(String prompt) {
+        try {
+            String content = callApi(prompt);
+            return content != null ? content.trim() : "";
+        } catch (Exception e) {
+            log.warn("LLM压缩失败: {}", e.getMessage());
+            return "";
+        }
+    }
+
     // ==== Phase 7: 学习档案报告（含历史上下文） ====
 
     @ReciteTraceNode(type = "LLM", name = "LLM生成报告")
