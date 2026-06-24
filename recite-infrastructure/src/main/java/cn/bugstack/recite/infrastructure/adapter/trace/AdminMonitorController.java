@@ -77,6 +77,9 @@ public class AdminMonitorController {
             vo.setNodeType(n.getNodeType());
             vo.setStatus(n.getStatus());
             vo.setLatencyMs(n.getLatencyMs());
+            vo.setExtraData(n.getExtraData());
+            vo.setDepth(n.getDepth());
+            vo.setParentNodeId(n.getParentNodeId());
             vo.setCreatedAt(n.getCreatedAt());
             return vo;
         }).toList();
@@ -94,6 +97,61 @@ public class AdminMonitorController {
         detail.setTrace(runVO);
         detail.setNodes(nodes);
         return Response.ok(detail);
+    }
+
+    /** 带筛选的链路列表（按 status/userId 筛选） */
+    @GetMapping("/traces/filter")
+    public Response<PageResult<TraceRunVO>> listTracesFiltered(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long userId) {
+
+        LambdaQueryWrapper<TraceRunDO> qw = new LambdaQueryWrapper<>();
+        if (status != null && !status.isBlank()) qw.eq(TraceRunDO::getStatus, status);
+        if (userId != null) qw.eq(TraceRunDO::getUserId, userId);
+        qw.orderByDesc(TraceRunDO::getCreatedAt);
+
+        Page<TraceRunDO> p = new Page<>(page, size);
+        traceRunMapper.selectPage(p, qw);
+
+        List<TraceRunVO> vos = p.getRecords().stream().map(r -> {
+            TraceRunVO vo = new TraceRunVO();
+            vo.setTraceId(r.getTraceId());
+            vo.setUserId(r.getUserId());
+            vo.setEntryMethod(r.getEntryMethod());
+            vo.setStatus(r.getStatus());
+            vo.setLatencyMs(r.getLatencyMs());
+            vo.setErrorMsg(r.getErrorMsg());
+            vo.setCreatedAt(r.getCreatedAt());
+            return vo;
+        }).toList();
+
+        PageResult<TraceRunVO> result = new PageResult<>();
+        result.setRecords(vos);
+        result.setTotal(p.getTotal());
+        result.setPage(page);
+        result.setSize(size);
+        return Response.ok(result);
+    }
+
+    /** 树形节点结构（按 depth + parentNodeId 展示层级） */
+    @GetMapping("/traces/{traceId}/tree")
+    public Response<List<TraceNodeVO>> traceTree(@PathVariable String traceId) {
+        List<TraceNodeDO> nodeDOs = traceNodeMapper.selectByTraceId(traceId);
+        List<TraceNodeVO> nodes = nodeDOs.stream().map(n -> {
+            TraceNodeVO vo = new TraceNodeVO();
+            vo.setNodeName(n.getNodeName());
+            vo.setNodeType(n.getNodeType());
+            vo.setStatus(n.getStatus());
+            vo.setLatencyMs(n.getLatencyMs());
+            vo.setExtraData(n.getExtraData());
+            vo.setDepth(n.getDepth());
+            vo.setParentNodeId(n.getParentNodeId());
+            vo.setCreatedAt(n.getCreatedAt());
+            return vo;
+        }).toList();
+        return Response.ok(nodes);
     }
 
     /** 今日统计：总请求数 / 平均耗时 / 异常数 */
@@ -134,6 +192,9 @@ public class AdminMonitorController {
         private String nodeType;
         private String status;
         private Long latencyMs;
+        private String extraData;
+        private Integer depth;
+        private String parentNodeId;
         private LocalDateTime createdAt;
     }
 

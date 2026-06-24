@@ -52,4 +52,11 @@ public class TracePersistenceAdapter {
                 .set(TraceNodeDO::getStatus, "ERROR")
                 .set(TraceNodeDO::getLatencyMs, latencyMs));
     }
+
+    /** 更新节点的阶段摘要 extraData（在 updateNodeSuccess 之后调用） */
+    public void updateNodeExtra(Long id, String extraData) {
+        traceNodeMapper.update(null, new LambdaUpdateWrapper<TraceNodeDO>()
+                .eq(TraceNodeDO::getId, id)
+                .set(TraceNodeDO::getExtraData, extraData));
+    }
 }

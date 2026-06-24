@@ -21,5 +21,11 @@ public class TraceNodeDO {
     private String nodeType;
     private String status;
     private Long latencyMs;
+    /** 阶段输入输出摘要 JSON: {"input":"...", "output":"...", "detail":"..."} */
+    private String extraData;
+    /** 节点深度（0=根阶段, 1=子步骤） */
+    private Integer depth;
+    /** 父节点 nodeId（根节点为 null） */
+    private String parentNodeId;
     private LocalDateTime createdAt;
 }
