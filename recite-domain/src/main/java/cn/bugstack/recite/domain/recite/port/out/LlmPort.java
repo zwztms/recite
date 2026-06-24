@@ -16,6 +16,12 @@ public interface LlmPort {
     /** AI 评分 */
     ScoreResultVO score(QuestionEntity question, String userAnswer);
 
+    /** AI 评分（含知识参考）—— Phase RAG 管线注入 */
+    default ScoreResultVO score(QuestionEntity question, String userAnswer,
+                                 List<String> knowledgeRefs) {
+        return score(question, userAnswer);
+    }
+
     /** 追问反馈 */
     String followUp(QuestionEntity question, String userAnswer);
 

@@ -1,9 +1,16 @@
 package cn.bugstack.recite.domain.recite.service;
 
 import cn.bugstack.recite.domain.knowledge.model.entity.QuestionEntity;
-import cn.bugstack.recite.types.annotation.ReciteTraceRoot;
 import cn.bugstack.recite.domain.knowledge.model.valueobj.EmbeddedQuestionVO;
+import cn.bugstack.recite.domain.knowledge.port.out.EmbeddingPort;
+import cn.bugstack.recite.domain.knowledge.port.out.KnowledgeChunkPort;
+import cn.bugstack.recite.domain.knowledge.port.out.KnowledgeRouterPort;
+import cn.bugstack.recite.domain.knowledge.port.out.QueryRewriterPort;
+import cn.bugstack.recite.domain.knowledge.port.out.EvaluationRecordPort;
+import cn.bugstack.recite.domain.knowledge.port.out.RAGEvaluatorPort;
 import cn.bugstack.recite.domain.knowledge.port.out.QuestionPort;
+import cn.bugstack.recite.domain.knowledge.service.MultiChannelRetrievalEngine;
+import cn.bugstack.recite.domain.knowledge.service.PostProcessingPipeline;
 import cn.bugstack.recite.domain.progress.model.entity.UserProgressEntity;
 import cn.bugstack.recite.domain.progress.port.out.ProgressPort;
 import cn.bugstack.recite.domain.progress.service.SpacedRepetitionService;
@@ -20,6 +27,7 @@ import cn.bugstack.recite.domain.recite.port.out.ReportMessagePort;
 import cn.bugstack.recite.domain.recite.port.out.ScoreSlotPort;
 import cn.bugstack.recite.domain.recite.port.out.SkillPort;
 import cn.bugstack.recite.domain.recite.port.out.SkillSlotPort;
+import cn.bugstack.recite.types.annotation.ReciteTraceRoot;
 import cn.bugstack.recite.types.enums.ReciteMode;
 import cn.bugstack.recite.types.skill.SkillResultVO;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +43,7 @@ import java.util.UUID;
 
 /**
  * 背诵核心编排器 — 不调外部 API，全部通过 Port 接口编排.
+ * Phase RAG: submitAnswer 接入 7 阶段知识增强管线.
  */
 @Slf4j
 @Service
@@ -54,6 +63,17 @@ public class ReciteOrchestrationService {
     private final SkillPort skillPort;
     private final SkillSlotPort skillSlotPort;
 
+    // ==== Phase RAG: 知识增强管线依赖 ====
+    private final QueryRewriterPort queryRewriter;
+    private final KnowledgeRouterPort knowledgeRouter;
+    private final MultiChannelRetrievalEngine retriever;
+    private final PostProcessingPipeline postProcessor;
+    private final RetrievalMemoryService retrievalMemory;
+    private final RAGEvaluatorPort ragEvaluator;
+    private final EvaluationRecordPort evalRecordPort;
+    private final EmbeddingPort embeddingPort;
+    private final KnowledgeChunkPort chunkPort;
+
     public ReciteOrchestrationService(QuestionPort questionPort,
                                        ReciteSessionPort sessionPort,
                                        ScoreSlotPort scoreSlotPort,
@@ -66,7 +86,16 @@ public class ReciteOrchestrationService {
                                        ReportMessagePort reportMessagePort,
                                        AchievementMessagePort achievementMessagePort,
                                        SkillPort skillPort,
-                                       SkillSlotPort skillSlotPort) {
+                                       SkillSlotPort skillSlotPort,
+                                       QueryRewriterPort queryRewriter,
+                                       KnowledgeRouterPort knowledgeRouter,
+                                       MultiChannelRetrievalEngine retriever,
+                                       PostProcessingPipeline postProcessor,
+                                       RetrievalMemoryService retrievalMemory,
+                                       RAGEvaluatorPort ragEvaluator,
+                                       EvaluationRecordPort evalRecordPort,
+                                       EmbeddingPort embeddingPort,
+                                       KnowledgeChunkPort chunkPort) {
         this.questionPort = questionPort;
         this.sessionPort = sessionPort;
         this.scoreSlotPort = scoreSlotPort;
@@ -80,6 +109,15 @@ public class ReciteOrchestrationService {
         this.achievementMessagePort = achievementMessagePort;
         this.skillPort = skillPort;
         this.skillSlotPort = skillSlotPort;
+        this.queryRewriter = queryRewriter;
+        this.knowledgeRouter = knowledgeRouter;
+        this.retriever = retriever;
+        this.postProcessor = postProcessor;
+        this.retrievalMemory = retrievalMemory;
+        this.ragEvaluator = ragEvaluator;
+        this.evalRecordPort = evalRecordPort;
+        this.embeddingPort = embeddingPort;
+        this.chunkPort = chunkPort;
     }
 
     /** 开始背诵 — 拉题 + 创建会话 */
@@ -140,7 +178,7 @@ public class ReciteOrchestrationService {
         return session;
     }
 
-    /** 提交答案 → 校验 + 抢槽 + LLM 评分 + 释放 + 存记录 + 更新会话 */
+    /** 提交答案 → 校验 + RAG管线 + LLM评分 + 存记录 + 更新会话 */
     @ReciteTraceRoot("submitAnswer")
     public ScoreResultVO submitAnswer(Long userId, String sessionId,
                                        String questionId, String answer) {
@@ -160,6 +198,42 @@ public class ReciteOrchestrationService {
                     "题目不存在");
         }
 
+        // ==== Phase RAG: 知识增强检索管线 ====
+        List<String> knowledgeRefs = List.of();
+        try {
+            // ① 查询改写
+            QueryRewriterPort.RewriteResult rewrite = queryRewriter.rewrite(
+                    answer, question.getQuestion(), question.getModuleKey());
+            log.debug("RAG① 查询改写: {} → {} subQueries",
+                    rewrite.rewrittenQuery(), rewrite.subQueries().size());
+
+            // ② 意图路由
+            KnowledgeRouterPort.RouteResult route = knowledgeRouter.route(
+                    retrievalMemory.getRecentMissedPoints(sessionId),
+                    question.getModuleKey(), 20);
+            log.debug("RAG② 意图路由: {} allocations", route.allocations().size());
+
+            // ③ 多通道检索
+            float[] primaryEmb = embeddingPort.embed(rewrite.rewrittenQuery());
+            List<String> candidates = retriever.retrieve(
+                    rewrite.allQueries(), route, primaryEmb, 30);
+            log.debug("RAG③ 多通道检索: {} candidates", candidates.size());
+
+            // ④ 后处理管线（归一化→去重→MMR→Reranker）
+            knowledgeRefs = postProcessor.process(candidates,
+                    rewrite.rewrittenQuery(), primaryEmb, 5);
+            log.debug("RAG④ 后处理: top-{} → {}", knowledgeRefs.size(), knowledgeRefs);
+
+        } catch (Exception e) {
+            log.warn("RAG管线失败(降级为纯向量检索, 评分不受影响): {}", e.getMessage());
+            try {
+                float[] emb = embeddingPort.embed(question.getQuestion());
+                knowledgeRefs = chunkPort.searchSimilar(emb, 3);
+            } catch (Exception e2) {
+                log.warn("降级检索也失败: {}", e2.getMessage());
+            }
+        }
+
         // 3. 评分（REVIEW 自评 vs 其他 LLM 评分 + Skill 扩展）
         ScoreResultVO vo;
         List<SkillResultVO> skillResults = List.of();
@@ -172,7 +246,7 @@ public class ReciteOrchestrationService {
             List<SkillPort.ToolDefinition> toolDefs = skillPort.listToolDefinitions();
 
             if (toolDefs.isEmpty()) {
-                // 无 skill：走原有评分逻辑
+                // 无 skill：走评分逻辑（含知识参考）
                 boolean acquired = scoreSlotPort.tryAcquire(30_000);
                 if (!acquired) {
                     throw new cn.bugstack.recite.domain.recite.exception.ReciteException(
@@ -180,7 +254,7 @@ public class ReciteOrchestrationService {
                             "评分排队超时，请稍后重试");
                 }
                 try {
-                    vo = llmPort.score(question, answer);
+                    vo = llmPort.score(question, answer, knowledgeRefs);
                     gateService.validateScore(vo.score());
                 } finally {
                     scoreSlotPort.release();
@@ -249,6 +323,24 @@ public class ReciteOrchestrationService {
             progressPort.save(updated);
         }
 
+        // ⑦ 记录 RAG 上下文记忆（供后续轮次使用）
+        try {
+            retrievalMemory.record(sessionId, question.getQuestion(), answer,
+                    vo.missedPoints(), question.getModuleKey());
+        } catch (Exception e) {
+            log.warn("RAG记忆记录失败: {}", e.getMessage());
+        }
+
+        // ⑧ MQ 异步 RAGAS 评估
+        try {
+            RAGEvaluatorPort.RAGEvaluationResult evalResult = ragEvaluator.evaluate(
+                    sessionId, question.getQuestion(), answer,
+                    vo.suggestion(), knowledgeRefs);
+            evalRecordPort.save(sessionId, evalResult, knowledgeRefs, vo.suggestion());
+        } catch (Exception e) {
+            log.warn("RAG评估失败(不影响背诵): {}", e.getMessage());
+        }
+
         // 8. 更新会话
         session.setCurrentIndex(session.getCurrentIndex() + 1);
         session.setFollowUpDepth(0);
@@ -263,7 +355,6 @@ public class ReciteOrchestrationService {
     /** 追问回答 → 校验深度 + LLM 追问 + 更新记录 */
     public String submitFollowUp(Long userId, String sessionId,
                                   Long recordId, String followUpAnswer) {
-        // 1. 校验会话
         ReciteSession session = sessionPort.findById(sessionId)
                 .orElseThrow(() -> new cn.bugstack.recite.domain.recite.exception.ReciteException(
                         cn.bugstack.recite.types.enums.ResponseCode.SESSION_NOT_FOUND.getCode(),
@@ -271,40 +362,32 @@ public class ReciteOrchestrationService {
         gateService.validateSession(session, userId);
         gateService.validateFollowUpDepth(session.getFollowUpDepth());
 
-        // 2. 查原记录 + 题目
         ReciteRecordEntity record = recordPort.findById(recordId);
         if (record == null) {
             throw new cn.bugstack.recite.domain.recite.exception.ReciteException("404", "记录不存在");
         }
         QuestionEntity question = questionPort.getById(record.getQuestionId());
 
-        // 3. LLM 追问反馈
         String feedback = llmPort.followUp(question, followUpAnswer);
-
-        // 4. 更新记录
         recordPort.updateFollowUp(recordId, followUpAnswer, feedback);
 
-        // 5. 递增追问深度
         session.setFollowUpDepth(session.getFollowUpDepth() + 1);
         sessionPort.update(session);
 
         return feedback;
     }
 
-    /** 结束背诵 → Java 统计 + MQ 异步报告 + 标记完成 */
+    /** 结束背诵 → Java 统计 + MQ 异步报告 + 清理记忆 */
     @ReciteTraceRoot("finishRecite")
     public SessionReportVO finishRecite(Long userId, String sessionId) {
-        // 1. 校验
         ReciteSession session = sessionPort.findById(sessionId)
                 .orElseThrow(() -> new cn.bugstack.recite.domain.recite.exception.ReciteException(
                         cn.bugstack.recite.types.enums.ResponseCode.SESSION_NOT_FOUND.getCode(),
                         "背诵会话不存在或已过期"));
         gateService.validateSession(session, userId);
 
-        // 2. 查全部记录
         List<ReciteRecordEntity> records = recordPort.findBySessionId(userId, sessionId);
 
-        // 3. Java 基础统计（前端即时展示，LLM 评语由 MQ 消费者异步生成）
         double total = records.stream().filter(r -> r.getScore() != null)
                 .mapToInt(ReciteRecordEntity::getScore).sum();
         double avg = records.stream().filter(r -> r.getScore() != null)
@@ -320,30 +403,24 @@ public class ReciteOrchestrationService {
         List<String> weaknesses = moduleScores.entrySet().stream()
                 .filter(e -> e.getValue() <= 4).map(java.util.Map.Entry::getKey).toList();
 
-        // 4. 标记完成 + 更新连续天数（先于 MQ，不阻塞用户看到结果）
         session.setStatus("FINISHED");
         sessionPort.update(session);
         streakService.checkIn(userId);
 
         log.info("结束背诵: userId={}, sid={}, 均分={}", userId, sessionId, avg);
 
-        // 5. 发 MQ 异步生成报告（后台线程，超时不阻塞返回）
         List<Long> recordIds = records.stream().map(ReciteRecordEntity::getId).toList();
         new Thread(() -> {
-            try {
-                reportMessagePort.sendReportRequest(userId, sessionId, recordIds);
-            } catch (Exception e) {
-                log.warn("发送报告 MQ 消息失败: {}", e.getMessage());
-            }
+            try { reportMessagePort.sendReportRequest(userId, sessionId, recordIds); }
+            catch (Exception e) { log.warn("发送报告 MQ 消息失败: {}", e.getMessage()); }
         }, "mq-report-" + sessionId).start();
 
         new Thread(() -> {
-            try {
-                achievementMessagePort.sendAchievementRequest(userId, sessionId);
-            } catch (Exception e) {
-                log.warn("发送成就 MQ 消息失败: {}", e.getMessage());
-            }
+            try { achievementMessagePort.sendAchievementRequest(userId, sessionId); }
+            catch (Exception e) { log.warn("发送成就 MQ 消息失败: {}", e.getMessage()); }
         }, "mq-achievement-" + sessionId).start();
+
+        try { retrievalMemory.clear(sessionId); } catch (Exception e) { }
 
         return new SessionReportVO(total, avg, count, strengths, weaknesses, "报告生成中，请稍后查看");
     }
@@ -383,6 +460,6 @@ public class ReciteOrchestrationService {
         String a = answer.trim();
         if (a.contains("想起")) return 9;
         if (a.contains("忘")) return 2;
-        return 5; // 不确定 / 其他
+        return 5;
     }
 }

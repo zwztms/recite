@@ -51,16 +51,31 @@ public class DeepSeekLlmAdapter implements LlmPort {
     @ReciteTraceNode(type = "LLM", name = "DeepSeek评分")
     @Override
     public ScoreResultVO score(QuestionEntity question, String userAnswer) {
+        return doScore(question, userAnswer, List.of());
+    }
+
+    @Override
+    public ScoreResultVO score(QuestionEntity question, String userAnswer,
+                                List<String> knowledgeRefs) {
+        return doScore(question, userAnswer, knowledgeRefs);
+    }
+
+    private ScoreResultVO doScore(QuestionEntity question, String userAnswer,
+                                   List<String> knowledgeRefs) {
+        String knowledgeSection = "";
+        if (knowledgeRefs != null && !knowledgeRefs.isEmpty()) {
+            knowledgeSection = "\n【知识参考】\n" + String.join("\n---\n", knowledgeRefs) + "\n";
+        }
         String prompt = """
                 你是大厂校招面试官。根据题目和回答评分（1-10分）。
-
+                %s
                 题目：%s
                 参考答案：%s
                 用户回答：%s
 
                 请严格返回以下JSON格式（不要markdown包裹）：
                 {"score":8,"correctPoints":["点1","点2"],"missedPoints":["遗漏点"],"suggestion":"改进建议","followUpQuestion":"针对回答薄弱点提出一个追问，若回答已完美则填无追问"}
-                """.formatted(question.getQuestion(), question.getContent(), userAnswer);
+                """.formatted(knowledgeSection, question.getQuestion(), question.getContent(), userAnswer);
 
         String raw = callApi(prompt);
         String json = extractJson(raw);
