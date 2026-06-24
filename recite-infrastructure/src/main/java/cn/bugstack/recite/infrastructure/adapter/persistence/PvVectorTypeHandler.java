@@ -41,7 +41,7 @@ public class PvVectorTypeHandler extends BaseTypeHandler<float[]> {
     // ---- 格式转换 ----
 
     /** float[] → "[0.1,0.2,...]" */
-    static String vectorToPgString(float[] vec) {
+    public static String vectorToPgString(float[] vec) {
         if (vec == null || vec.length == 0) return "[]";
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < vec.length; i++) {
