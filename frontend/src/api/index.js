@@ -217,4 +217,28 @@ export function markMastery(questionId, mastered) {
   return api.post('/learn/mark', { questionId, mastered })
 }
 
+// ================================================================
+// 知识库管理 (Phase RAG)
+// ================================================================
+
+export function listKnowledgeDocs() {
+  return api.get('/admin/knowledge/chunks')
+}
+
+export function deleteKnowledgeDoc(docTitle) {
+  return api.delete('/admin/knowledge/chunks', { params: { docTitle } })
+}
+
+// ================================================================
+// RAG 评估 (Phase RAG)
+// ================================================================
+
+export function getRAGEval(sessionId) {
+  return api.get(`/admin/rag/eval/${sessionId}`)
+}
+
+export function getRAGStats(limit = 20) {
+  return api.get('/admin/rag/stats', { params: { limit } })
+}
+
 export default api

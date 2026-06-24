@@ -26,6 +26,16 @@ const routes = [
     meta: { auth: true, role: 'ADMIN' }
   },
   {
+    path: '/admin/knowledge',
+    component: () => import('../views/KnowledgeAdmin.vue'),
+    meta: { auth: true, role: 'ADMIN' }
+  },
+  {
+    path: '/admin/rag-eval',
+    component: () => import('../views/RAGEvalDashboard.vue'),
+    meta: { auth: true, role: 'ADMIN' }
+  },
+  {
     path: '/home',
     component: () => import('../views/HomePage.vue'),
     meta: { auth: true }
