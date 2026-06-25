@@ -70,9 +70,18 @@ public class UserController {
     public Response<?> updateUser(@PathVariable Long id, @RequestBody Map<String, String> body) {
         String role = body.get("role");
         if ("admin".equals(role)) {
-            AdminUserDO au = new AdminUserDO();
-            au.setId(id);
-            adminUserMapper.insert(au);
+            // 已在 admin_users 中则跳过
+            if (adminUserMapper.selectCount(
+                    new LambdaQueryWrapper<AdminUserDO>().eq(AdminUserDO::getId, id)) == 0) {
+                UserDO user = userMapper.selectById(id);
+                if (user == null) return Response.fail("404", "用户不存在");
+                AdminUserDO au = new AdminUserDO();
+                au.setId(id);
+                au.setUsername(user.getPhone());
+                au.setPasswordHash(user.getPasswordHash());
+                au.setStatus("ACTIVE");
+                adminUserMapper.insert(au);
+            }
         } else {
             adminUserMapper.delete(new LambdaQueryWrapper<AdminUserDO>().eq(AdminUserDO::getId, id));
         }
