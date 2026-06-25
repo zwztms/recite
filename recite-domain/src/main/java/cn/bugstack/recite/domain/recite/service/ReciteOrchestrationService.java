@@ -2,15 +2,7 @@ package cn.bugstack.recite.domain.recite.service;
 
 import cn.bugstack.recite.domain.knowledge.model.entity.QuestionEntity;
 import cn.bugstack.recite.domain.knowledge.model.valueobj.EmbeddedQuestionVO;
-import cn.bugstack.recite.domain.knowledge.port.out.EmbeddingPort;
-import cn.bugstack.recite.domain.knowledge.port.out.KnowledgeChunkPort;
-import cn.bugstack.recite.domain.knowledge.port.out.KnowledgeRouterPort;
-import cn.bugstack.recite.domain.knowledge.port.out.QueryRewriterPort;
-import cn.bugstack.recite.domain.knowledge.port.out.EvaluationRecordPort;
-import cn.bugstack.recite.domain.knowledge.port.out.RAGEvaluatorPort;
 import cn.bugstack.recite.domain.knowledge.port.out.QuestionPort;
-import cn.bugstack.recite.domain.knowledge.service.MultiChannelRetrievalEngine;
-import cn.bugstack.recite.domain.knowledge.service.PostProcessingPipeline;
 import cn.bugstack.recite.domain.progress.model.entity.UserProgressEntity;
 import cn.bugstack.recite.domain.progress.port.out.ProgressPort;
 import cn.bugstack.recite.domain.progress.service.SpacedRepetitionService;
@@ -63,16 +55,8 @@ public class ReciteOrchestrationService {
     private final SkillPort skillPort;
     private final SkillSlotPort skillSlotPort;
 
-    // ==== Phase RAG: 知识增强管线依赖 ====
-    private final QueryRewriterPort queryRewriter;
-    private final KnowledgeRouterPort knowledgeRouter;
-    private final MultiChannelRetrievalEngine retriever;
-    private final PostProcessingPipeline postProcessor;
-    private final RetrievalMemoryService retrievalMemory;
-    private final RAGEvaluatorPort ragEvaluator;
-    private final EvaluationRecordPort evalRecordPort;
-    private final EmbeddingPort embeddingPort;
-    private final KnowledgeChunkPort chunkPort;
+    // ==== RAG 管线封装 ====
+    private final ReciteKnowledgeService knowledgeService;
 
     public ReciteOrchestrationService(QuestionPort questionPort,
                                        ReciteSessionPort sessionPort,
@@ -87,15 +71,7 @@ public class ReciteOrchestrationService {
                                        AchievementMessagePort achievementMessagePort,
                                        SkillPort skillPort,
                                        SkillSlotPort skillSlotPort,
-                                       QueryRewriterPort queryRewriter,
-                                       KnowledgeRouterPort knowledgeRouter,
-                                       MultiChannelRetrievalEngine retriever,
-                                       PostProcessingPipeline postProcessor,
-                                       RetrievalMemoryService retrievalMemory,
-                                       RAGEvaluatorPort ragEvaluator,
-                                       EvaluationRecordPort evalRecordPort,
-                                       EmbeddingPort embeddingPort,
-                                       KnowledgeChunkPort chunkPort) {
+                                       ReciteKnowledgeService knowledgeService) {
         this.questionPort = questionPort;
         this.sessionPort = sessionPort;
         this.scoreSlotPort = scoreSlotPort;
@@ -109,15 +85,7 @@ public class ReciteOrchestrationService {
         this.achievementMessagePort = achievementMessagePort;
         this.skillPort = skillPort;
         this.skillSlotPort = skillSlotPort;
-        this.queryRewriter = queryRewriter;
-        this.knowledgeRouter = knowledgeRouter;
-        this.retriever = retriever;
-        this.postProcessor = postProcessor;
-        this.retrievalMemory = retrievalMemory;
-        this.ragEvaluator = ragEvaluator;
-        this.evalRecordPort = evalRecordPort;
-        this.embeddingPort = embeddingPort;
-        this.chunkPort = chunkPort;
+        this.knowledgeService = knowledgeService;
     }
 
     /** 开始背诵 — 拉题 + 创建会话 */
@@ -198,41 +166,8 @@ public class ReciteOrchestrationService {
                     "题目不存在");
         }
 
-        // ==== Phase RAG: 知识增强检索管线 ====
-        List<String> knowledgeRefs = List.of();
-        try {
-            // ① 查询改写
-            QueryRewriterPort.RewriteResult rewrite = queryRewriter.rewrite(
-                    answer, question.getQuestion(), question.getModuleKey());
-            log.debug("RAG① 查询改写: {} → {} subQueries",
-                    rewrite.rewrittenQuery(), rewrite.subQueries().size());
-
-            // ② 意图路由
-            KnowledgeRouterPort.RouteResult route = knowledgeRouter.route(
-                    retrievalMemory.getRecentMissedPoints(sessionId),
-                    question.getModuleKey(), 20);
-            log.debug("RAG② 意图路由: {} allocations", route.allocations().size());
-
-            // ③ 多通道检索
-            float[] primaryEmb = embeddingPort.embed(rewrite.rewrittenQuery());
-            List<String> candidates = retriever.retrieve(
-                    rewrite.allQueries(), route, primaryEmb, 30);
-            log.debug("RAG③ 多通道检索: {} candidates", candidates.size());
-
-            // ④ 后处理管线（归一化→去重→MMR→Reranker）
-            knowledgeRefs = postProcessor.process(candidates,
-                    rewrite.rewrittenQuery(), primaryEmb, 5);
-            log.debug("RAG④ 后处理: top-{} → {}", knowledgeRefs.size(), knowledgeRefs);
-
-        } catch (Exception e) {
-            log.warn("RAG管线失败(降级为纯向量检索, 评分不受影响): {}", e.getMessage());
-            try {
-                float[] emb = embeddingPort.embed(question.getQuestion());
-                knowledgeRefs = chunkPort.searchSimilar(emb, 3);
-            } catch (Exception e2) {
-                log.warn("降级检索也失败: {}", e2.getMessage());
-            }
-        }
+        // ==== Phase RAG: 知识增强检索 ====
+        List<String> knowledgeRefs = knowledgeService.retrieve(question, answer, sessionId);
 
         // 3. 评分（REVIEW 自评 vs 其他 LLM 评分 + Skill 扩展）
         ScoreResultVO vo;
@@ -323,23 +258,11 @@ public class ReciteOrchestrationService {
             progressPort.save(updated);
         }
 
-        // ⑦ 记录 RAG 上下文记忆（供后续轮次使用）
-        try {
-            retrievalMemory.record(sessionId, question.getQuestion(), answer,
-                    vo.missedPoints(), question.getModuleKey());
-        } catch (Exception e) {
-            log.warn("RAG记忆记录失败: {}", e.getMessage());
-        }
-
-        // ⑧ MQ 异步 RAGAS 评估
-        try {
-            RAGEvaluatorPort.RAGEvaluationResult evalResult = ragEvaluator.evaluate(
-                    sessionId, question.getQuestion(), answer,
-                    vo.suggestion(), knowledgeRefs);
-            evalRecordPort.save(sessionId, evalResult, knowledgeRefs, vo.suggestion());
-        } catch (Exception e) {
-            log.warn("RAG评估失败(不影响背诵): {}", e.getMessage());
-        }
+        // ⑦ 记录 RAG 上下文记忆 + 异步评估
+        knowledgeService.recordMemory(sessionId, question.getQuestion(), answer,
+                vo.missedPoints(), question.getModuleKey());
+        knowledgeService.evaluateAsync(sessionId, question.getQuestion(), answer,
+                vo.suggestion(), knowledgeRefs);
 
         // 8. 更新会话
         session.setCurrentIndex(session.getCurrentIndex() + 1);
@@ -413,7 +336,7 @@ public class ReciteOrchestrationService {
         reportMessagePort.sendReportRequest(userId, sessionId, recordIds);
         achievementMessagePort.sendAchievementRequest(userId, sessionId);
 
-        try { retrievalMemory.clear(sessionId); } catch (Exception e) { }
+        knowledgeService.clearMemory(sessionId);
 
         return new SessionReportVO(total, avg, count, strengths, weaknesses, "报告生成中，请稍后查看");
     }
