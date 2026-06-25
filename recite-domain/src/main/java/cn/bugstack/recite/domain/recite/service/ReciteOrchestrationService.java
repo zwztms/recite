@@ -410,15 +410,8 @@ public class ReciteOrchestrationService {
         log.info("结束背诵: userId={}, sid={}, 均分={}", userId, sessionId, avg);
 
         List<Long> recordIds = records.stream().map(ReciteRecordEntity::getId).toList();
-        new Thread(() -> {
-            try { reportMessagePort.sendReportRequest(userId, sessionId, recordIds); }
-            catch (Exception e) { log.warn("发送报告 MQ 消息失败: {}", e.getMessage()); }
-        }, "mq-report-" + sessionId).start();
-
-        new Thread(() -> {
-            try { achievementMessagePort.sendAchievementRequest(userId, sessionId); }
-            catch (Exception e) { log.warn("发送成就 MQ 消息失败: {}", e.getMessage()); }
-        }, "mq-achievement-" + sessionId).start();
+        reportMessagePort.sendReportRequest(userId, sessionId, recordIds);
+        achievementMessagePort.sendAchievementRequest(userId, sessionId);
 
         try { retrievalMemory.clear(sessionId); } catch (Exception e) { }
 
