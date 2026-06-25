@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * SiliconFlow Embedding 适配器 — Qwen3-Embedding-0.6B, 1024 维.
@@ -27,16 +26,12 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingPort {
     private final String apiKey;
     private final String embeddingUrl;
 
-    public SiliconFlowEmbeddingAdapter(
+    public SiliconFlowEmbeddingAdapter(OkHttpClient client,
             @Value("${siliconflow.api-key}") String apiKey,
             @Value("${siliconflow.embedding-url:https://api.siliconflow.cn/v1/embeddings}") String embeddingUrl) {
+        this.client = client;
         this.apiKey = apiKey;
         this.embeddingUrl = embeddingUrl;
-        this.client = new OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .build();
     }
 
     @Override

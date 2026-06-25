@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * DeepSeek 驱动的 RAGAS 四指标评估.
@@ -24,14 +23,12 @@ public class DeepSeekRAGEvaluator implements RAGEvaluatorPort {
     private final String apiKey;
     private final String chatUrl;
 
-    public DeepSeekRAGEvaluator(
+    public DeepSeekRAGEvaluator(OkHttpClient client,
             @Value("${deepseek.api-key}") String apiKey,
             @Value("${deepseek.chat-url:https://api.deepseek.com/v1/chat/completions}") String chatUrl) {
+        this.client = client;
         this.apiKey = apiKey;
         this.chatUrl = chatUrl;
-        this.client = new OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(45, TimeUnit.SECONDS).build();
     }
 
     @Override

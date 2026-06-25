@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 实现 SkillPort — 子 LLM 调用.
@@ -28,17 +27,13 @@ public class DeepSeekSkillAdapter implements SkillPort {
     private final String apiKey;
     private final String chatUrl;
 
-    public DeepSeekSkillAdapter(SkillRegistry registry,
+    public DeepSeekSkillAdapter(OkHttpClient client, SkillRegistry registry,
                                 @Value("${deepseek.api-key}") String apiKey,
                                 @Value("${deepseek.chat-url:https://api.deepseek.com/v1/chat/completions}") String chatUrl) {
+        this.client = client;
         this.registry = registry;
         this.apiKey = apiKey;
         this.chatUrl = chatUrl;
-        this.client = new OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(120, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .build();
     }
 
     @Override

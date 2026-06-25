@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
@@ -28,14 +27,12 @@ public class DeepSeekQueryRewriter implements QueryRewriterPort {
 
     private static final Pattern WORD_PATTERN = Pattern.compile("[a-zA-Z]{2,}");
 
-    public DeepSeekQueryRewriter(
+    public DeepSeekQueryRewriter(OkHttpClient client,
             @Value("${deepseek.api-key}") String apiKey,
             @Value("${deepseek.chat-url:https://api.deepseek.com/v1/chat/completions}") String chatUrl) {
+        this.client = client;
         this.apiKey = apiKey;
         this.chatUrl = chatUrl;
-        this.client = new OkHttpClient.Builder()
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(20, TimeUnit.SECONDS).build();
     }
 
     @Override

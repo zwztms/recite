@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 /**
  * DeepSeek 驱动的 Chunk 上下文富化.
@@ -27,14 +26,12 @@ public class DeepSeekChunkEnricher implements ChunkEnricherPort {
 
     private static final int BATCH_SIZE = 10;
 
-    public DeepSeekChunkEnricher(
+    public DeepSeekChunkEnricher(OkHttpClient client,
             @Value("${deepseek.api-key}") String apiKey,
             @Value("${deepseek.chat-url:https://api.deepseek.com/v1/chat/completions}") String chatUrl) {
+        this.client = client;
         this.apiKey = apiKey;
         this.chatUrl = chatUrl;
-        this.client = new OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS).build();
     }
 
     @Override

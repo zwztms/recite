@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 /**
  * LLM Cross-Encoder 重排器.
@@ -25,14 +24,12 @@ public class DeepSeekReranker implements RerankerPort {
     private final String apiKey;
     private final String chatUrl;
 
-    public DeepSeekReranker(
+    public DeepSeekReranker(OkHttpClient client,
             @Value("${deepseek.api-key}") String apiKey,
             @Value("${deepseek.chat-url:https://api.deepseek.com/v1/chat/completions}") String chatUrl) {
+        this.client = client;
         this.apiKey = apiKey;
         this.chatUrl = chatUrl;
-        this.client = new OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS).build();
     }
 
     @Override

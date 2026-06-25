@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -35,16 +34,12 @@ public class DeepSeekLlmAdapter implements LlmPort {
     private final String apiKey;
     private final String chatUrl;
 
-    public DeepSeekLlmAdapter(
+    public DeepSeekLlmAdapter(OkHttpClient client,
             @Value("${deepseek.api-key}") String apiKey,
             @Value("${deepseek.chat-url:https://api.deepseek.com/v1/chat/completions}") String chatUrl) {
+        this.client = client;
         this.apiKey = apiKey;
         this.chatUrl = chatUrl;
-        this.client = new OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(120, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .build();
     }
 
     @ReciteTraceNode(type = "LLM", name = "DeepSeek评分")
